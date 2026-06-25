@@ -1,0 +1,213 @@
+- generic [active] [ref=e1]:
+  - heading "Section Reveal Animation Demo" [level=1] [ref=e2]
+  - paragraph [ref=e3]: Click a card → a section pops out BELOW with files. Click again → it vanishes. Each effect is different.
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: A
+      - text: Mirror Flip + Slide
+    - generic [ref=e7]: Section flips up from below with 3D perspective, files stagger in. Cinematic, Lando Norris-inspired.
+    - generic [ref=e8]:
+      - generic [ref=e9] [cursor=pointer]:
+        - generic [ref=e10]: 📄
+        - generic [ref=e11]:
+          - generic [ref=e12]: "3"
+          - generic [ref=e13]: New Files
+        - img [ref=e14]
+      - generic [ref=e16] [cursor=pointer]:
+        - generic [ref=e17]: ✏️
+        - generic [ref=e18]:
+          - generic [ref=e19]: "5"
+          - generic [ref=e20]: Modified
+        - img [ref=e21]
+      - generic [ref=e23] [cursor=pointer]:
+        - generic [ref=e24]: 🗑️
+        - generic [ref=e25]:
+          - generic [ref=e26]: "2"
+          - generic [ref=e27]: Deleted
+        - img [ref=e28]
+      - generic [ref=e30] [cursor=pointer]:
+        - generic [ref=e31]: 📦
+        - generic [ref=e32]:
+          - generic [ref=e33]: "3"
+          - generic [ref=e34]: Moved
+        - img [ref=e35]
+    - generic [ref=e202]:
+      - generic [ref=e228]:
+        - generic [ref=e229]: Modified
+        - generic [ref=e230]: 5 files
+        - button "✕ close" [ref=e231] [cursor=pointer]
+      - generic [ref=e232] [cursor=pointer]:
+        - generic [ref=e234]: index.tsx
+        - generic [ref=e235]: …/src/index.tsx
+        - generic [ref=e236]: 1m ago
+        - img [ref=e237]
+      - generic [ref=e239] [cursor=pointer]:
+        - generic [ref=e241]: styles.css
+        - generic [ref=e242]: …/src/styles.css
+        - generic [ref=e243]: 4m ago
+        - img [ref=e244]
+      - generic [ref=e246] [cursor=pointer]:
+        - generic [ref=e248]: api.ts
+        - generic [ref=e249]: …/lib/api.ts
+        - generic [ref=e250]: 12m ago
+        - img [ref=e251]
+      - generic [ref=e253] [cursor=pointer]:
+        - generic [ref=e255]: config.yaml
+        - generic [ref=e256]: …/config.yaml
+        - generic [ref=e257]: 20m ago
+        - img [ref=e258]
+      - generic [ref=e260] [cursor=pointer]:
+        - generic [ref=e262]: README.md
+        - generic [ref=e263]: …/README.md
+        - generic [ref=e264]: 1h ago
+        - img [ref=e265]
+  - generic [ref=e37]:
+    - generic [ref=e38]:
+      - generic [ref=e39]: B
+      - text: Curtain Drop + Elastic
+    - generic [ref=e40]: Panel drops down like a curtain with elastic bounce, files slide in from left. Smooth, buttery.
+    - generic [ref=e41]:
+      - generic [ref=e42] [cursor=pointer]:
+        - generic [ref=e43]: 📄
+        - generic [ref=e44]:
+          - generic [ref=e45]: "3"
+          - generic [ref=e46]: New Files
+        - img [ref=e47]
+      - generic [ref=e49] [cursor=pointer]:
+        - generic [ref=e50]: ✏️
+        - generic [ref=e51]:
+          - generic [ref=e52]: "5"
+          - generic [ref=e53]: Modified
+        - img [ref=e54]
+      - generic [ref=e56] [cursor=pointer]:
+        - generic [ref=e57]: 🗑️
+        - generic [ref=e58]:
+          - generic [ref=e59]: "2"
+          - generic [ref=e60]: Deleted
+        - img [ref=e61]
+      - generic [ref=e63] [cursor=pointer]:
+        - generic [ref=e64]: 📦
+        - generic [ref=e65]:
+          - generic [ref=e66]: "3"
+          - generic [ref=e67]: Moved
+        - img [ref=e68]
+  - generic [ref=e70]:
+    - generic [ref=e71]:
+      - generic [ref=e72]: C
+      - text: Clip Morph
+    - generic [ref=e73]: Section reveals via clip-path animation, as if being "drawn" into existence. Clean, geometric.
+    - generic [ref=e74]:
+      - generic [ref=e75] [cursor=pointer]:
+        - generic [ref=e76]: 📄
+        - generic [ref=e77]:
+          - generic [ref=e78]: "3"
+          - generic [ref=e79]: New Files
+        - img [ref=e80]
+      - generic [ref=e82] [cursor=pointer]:
+        - generic [ref=e83]: ✏️
+        - generic [ref=e84]:
+          - generic [ref=e85]: "5"
+          - generic [ref=e86]: Modified
+        - img [ref=e87]
+      - generic [ref=e89] [cursor=pointer]:
+        - generic [ref=e90]: 🗑️
+        - generic [ref=e91]:
+          - generic [ref=e92]: "2"
+          - generic [ref=e93]: Deleted
+        - img [ref=e94]
+      - generic [ref=e96] [cursor=pointer]:
+        - generic [ref=e97]: 📦
+        - generic [ref=e98]:
+          - generic [ref=e99]: "3"
+          - generic [ref=e100]: Moved
+        - img [ref=e101]
+  - generic [ref=e103]:
+    - generic [ref=e104]:
+      - generic [ref=e105]: D
+      - text: Glass Morph + Wave
+    - generic [ref=e106]: Frosted glass panel slides up with backdrop blur, files wave in one by one. Premium, Apple-like.
+    - generic [ref=e107]:
+      - generic [ref=e108] [cursor=pointer]:
+        - generic [ref=e109]: 📄
+        - generic [ref=e110]:
+          - generic [ref=e111]: "3"
+          - generic [ref=e112]: New Files
+        - img [ref=e113]
+      - generic [ref=e115] [cursor=pointer]:
+        - generic [ref=e116]: ✏️
+        - generic [ref=e117]:
+          - generic [ref=e118]: "5"
+          - generic [ref=e119]: Modified
+        - img [ref=e120]
+      - generic [ref=e122] [cursor=pointer]:
+        - generic [ref=e123]: 🗑️
+        - generic [ref=e124]:
+          - generic [ref=e125]: "2"
+          - generic [ref=e126]: Deleted
+        - img [ref=e127]
+      - generic [ref=e129] [cursor=pointer]:
+        - generic [ref=e130]: 📦
+        - generic [ref=e131]:
+          - generic [ref=e132]: "3"
+          - generic [ref=e133]: Moved
+        - img [ref=e134]
+  - generic [ref=e136]:
+    - generic [ref=e137]:
+      - generic [ref=e138]: E
+      - text: Split Open
+    - generic [ref=e139]: Section splits open from center like a vault door, files pop in. Dramatic, unique.
+    - generic [ref=e140]:
+      - generic [ref=e141] [cursor=pointer]:
+        - generic [ref=e142]: 📄
+        - generic [ref=e143]:
+          - generic [ref=e144]: "3"
+          - generic [ref=e145]: New Files
+        - img [ref=e146]
+      - generic [ref=e148] [cursor=pointer]:
+        - generic [ref=e149]: ✏️
+        - generic [ref=e150]:
+          - generic [ref=e151]: "5"
+          - generic [ref=e152]: Modified
+        - img [ref=e153]
+      - generic [ref=e155] [cursor=pointer]:
+        - generic [ref=e156]: 🗑️
+        - generic [ref=e157]:
+          - generic [ref=e158]: "2"
+          - generic [ref=e159]: Deleted
+        - img [ref=e160]
+      - generic [ref=e162] [cursor=pointer]:
+        - generic [ref=e163]: 📦
+        - generic [ref=e164]:
+          - generic [ref=e165]: "3"
+          - generic [ref=e166]: Moved
+        - img [ref=e167]
+  - generic [ref=e169]:
+    - generic [ref=e170]:
+      - generic [ref=e171]: F
+      - text: Liquid Wash + Float
+    - generic [ref=e172]: Colored liquid gradient washes across the panel, files float upward. Organic, fluid.
+    - generic [ref=e173]:
+      - generic [ref=e174] [cursor=pointer]:
+        - generic [ref=e175]: 📄
+        - generic [ref=e176]:
+          - generic [ref=e177]: "3"
+          - generic [ref=e178]: New Files
+        - img [ref=e179]
+      - generic [ref=e181] [cursor=pointer]:
+        - generic [ref=e182]: ✏️
+        - generic [ref=e183]:
+          - generic [ref=e184]: "5"
+          - generic [ref=e185]: Modified
+        - img [ref=e186]
+      - generic [ref=e188] [cursor=pointer]:
+        - generic [ref=e189]: 🗑️
+        - generic [ref=e190]:
+          - generic [ref=e191]: "2"
+          - generic [ref=e192]: Deleted
+        - img [ref=e193]
+      - generic [ref=e195] [cursor=pointer]:
+        - generic [ref=e196]: 📦
+        - generic [ref=e197]:
+          - generic [ref=e198]: "3"
+          - generic [ref=e199]: Moved
+        - img [ref=e200]

@@ -1,0 +1,75 @@
+- generic [active] [ref=e1]:
+  - heading "What Changed? — Card Effects Demo" [level=1] [ref=e2]
+  - paragraph [ref=e3]: Click each card to see the expand effect. Pick your favorite!
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: Card 1
+      - generic [ref=e7] [cursor=pointer]:
+        - generic [ref=e9]:
+          - generic [ref=e10]:
+            - generic [ref=e11]: +
+            - generic [ref=e12]:
+              - generic [ref=e13]: "3"
+              - generic [ref=e14]: New Files
+          - generic [ref=e16]: ▸ click to expand
+        - generic:
+          - generic [ref=e17]:
+            - text: report.pdf
+            - generic [ref=e19]: C:\Users\Docs
+          - generic [ref=e20]:
+            - text: data.csv
+            - generic [ref=e22]: C:\Projects\app
+          - generic [ref=e23]:
+            - text: notes.md
+            - generic [ref=e25]: C:\Users\Desktop
+      - generic [ref=e26]: Holographic HUD Glass
+    - generic [ref=e27]:
+      - generic [ref=e28]: Card 2
+      - generic [ref=e29] [cursor=pointer]:
+        - generic [ref=e30]:
+          - generic [ref=e31]:
+            - generic [ref=e32]: ✎
+            - generic [ref=e33]:
+              - generic [ref=e34]: "1"
+              - generic [ref=e35]: Modified
+          - generic [ref=e37]: ▸ click to reveal
+        - generic [ref=e39]:
+          - text: server.ts
+          - generic [ref=e41]: 14.2 KB
+      - generic [ref=e42]: Neon Pulse + Split Open
+    - generic [ref=e43]:
+      - generic [ref=e44]: Card 3
+      - generic [ref=e45] [cursor=pointer]:
+        - generic [ref=e46]:
+          - generic [ref=e47]:
+            - generic [ref=e48]: ✕
+            - generic [ref=e49]:
+              - generic [ref=e50]: "2"
+              - generic [ref=e51]: Deleted
+          - generic [ref=e53]: ▸ click to pop
+        - generic:
+          - generic [ref=e54]:
+            - text: old_config.json
+            - generic [ref=e57]: 2.1 KB
+          - generic [ref=e58]:
+            - text: temp.log
+            - generic [ref=e61]: 48 KB
+      - generic [ref=e62]: Circuit Trace + 3D Pop
+    - generic [ref=e63]:
+      - generic [ref=e64]: Card 4
+      - generic [ref=e65] [cursor=pointer]:
+        - generic [ref=e66]:
+          - generic [ref=e67]:
+            - generic [ref=e68]: ↔
+            - generic [ref=e69]:
+              - generic [ref=e70]: "1"
+              - generic [ref=e71]: Moved
+          - generic [ref=e73]: ▸ click to flow
+        - generic:
+          - generic [ref=e74]:
+            - text: design.fig
+            - generic [ref=e76]: 3.4 MB
+          - generic [ref=e77]:
+            - text: README.md
+            - generic [ref=e79]: 1.8 KB
+      - generic [ref=e80]: Aurora Plasma Flow

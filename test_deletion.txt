@@ -1,0 +1,4 @@
+Hello, this is a test file for deletion detection and recovery.
+Created: 2026-06-17
+Purpose: Testing the recycle bin detection, file snapshots, and restore features.
+If you're reading this after a restore, the recovery feature works!

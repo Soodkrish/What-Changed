@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Card Effects Demo — What Changed?</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0a0a0f;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    color: #e0e0e0;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle { color: #666; font-size: 14px; margin-bottom: 48px; }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    max-width: 900px;
+    width: 100%;
+  }
+  .card-wrapper { position: relative; }
+  .card-label {
+    text-align: center;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #555;
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+  .effect-name {
+    font-size: 13px;
+    color: #888;
+    margin-top: 12px;
+    text-align: center;
+    font-style: italic;
+  }
+
+  /* ============================================================
+     EFFECT 1: HOLOGRAPHIC HUD GLASS
+     ============================================================ */
+  .card-hud {
+    position: relative;
+    background: rgba(255,255,255,0.03);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 16px;
+    padding: 24px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .card-hud::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 18px;
+    padding: 2px;
+    background: conic-gradient(
+      from var(--angle, 0deg),
+      #00f0ff, #7b61ff, #f093fb, #00f0ff
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: hudRotate 3s linear infinite;
+  }
+  .card-hud::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    background: radial-gradient(
+      ellipse at var(--mx, 50%) var(--my, 50%),
+      rgba(0, 240, 255, 0.08) 0%,
+      transparent 60%
+    );
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .card-hud:hover::after { opacity: 1; }
+  .card-hud:hover { transform: translateY(-2px); }
+
+  @keyframes hudRotate {
+    to { --angle: 360deg; }
+  }
+  @property --angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+  }
+
+  /* Scan line animation */
+  .hud-scanline {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #00f0ff, transparent);
+    animation: hudScan 2.5s ease-in-out infinite;
+    opacity: 0.6;
+  }
+  @keyframes hudScan {
+    0% { top: 0; opacity: 0; }
+    10% { opacity: 0.6; }
+    90% { opacity: 0.6; }
+    100% { top: 100%; opacity: 0; }
+  }
+
+  /* Expand state */
+  .hud-expand {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+                opacity 0.3s ease,
+                margin 0.4s ease;
+    opacity: 0;
+    margin-top: 0;
+  }
+  .card-hud.expanded .hud-expand {
+    max-height: 300px;
+    opacity: 1;
+    margin-top: 16px;
+  }
+  .hud-file {
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(0, 240, 255, 0.05);
+    border: 1px solid rgba(0, 240, 255, 0.1);
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #b0d0d0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transform: translateY(-10px);
+    opacity: 0;
+    animation: none;
+  }
+  .card-hud.expanded .hud-file {
+    animation: hudFileIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  .card-hud.expanded .hud-file:nth-child(1) { animation-delay: 0.05s; }
+  .card-hud.expanded .hud-file:nth-child(2) { animation-delay: 0.1s; }
+  .card-hud.expanded .hud-file:nth-child(3) { animation-delay: 0.15s; }
+  .hud-file .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #00f0ff;
+    box-shadow: 0 0 6px #00f0ff;
+    flex-shrink: 0;
+  }
+  .hud-file .path {
+    color: #556;
+    font-size: 11px;
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  @keyframes hudFileIn {
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  /* ============================================================
+     EFFECT 2: NEON PULSE + SPLIT OPEN
+     ============================================================ */
+  .card-neon {
+    position: relative;
+    background: #111118;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    padding: 24px;
+    cursor: pointer;
+    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    overflow: hidden;
+  }
+  .card-neon .neon-glow {
+    position: absolute;
+    inset: -1px;
+    border-radius: 16px;
+    opacity: 0;
+    transition: opacity 0.4s;
+    pointer-events: none;
+  }
+  .card-neon.neon-red .neon-glow {
+    box-shadow:
+      0 0 15px rgba(239, 68, 68, 0.3),
+      0 0 40px rgba(239, 68, 68, 0.1),
+      inset 0 0 15px rgba(239, 68, 68, 0.05);
+  }
+  .card-neon.neon-green .neon-glow {
+    box-shadow:
+      0 0 15px rgba(16, 185, 129, 0.3),
+      0 0 40px rgba(16, 185, 129, 0.1),
+      inset 0 0 15px rgba(16, 185, 129, 0.05);
+  }
+  .card-neon.neon-blue .neon-glow {
+    box-shadow:
+      0 0 15px rgba(59, 130, 246, 0.3),
+      0 0 40px rgba(59, 130, 246, 0.1),
+      inset 0 0 15px rgba(59, 130, 246, 0.05);
+  }
+  .card-neon.neon-amber .neon-glow {
+    box-shadow:
+      0 0 15px rgba(245, 158, 11, 0.3),
+      0 0 40px rgba(245, 158, 11, 0.1),
+      inset 0 0 15px rgba(245, 158, 11, 0.05);
+  }
+  .card-neon:hover .neon-glow { opacity: 1; }
+  .card-neon:hover { transform: translateY(-2px) scale(1.01); }
+
+  /* Pulse animation */
+  .neon-pulse {
+    position: absolute;
+    inset: -1px;
+    border-radius: 16px;
+    pointer-events: none;
+  }
+  .card-neon.neon-green .neon-pulse { animation: pulseGreen 2s ease-in-out infinite; }
+  .card-neon.neon-blue .neon-pulse { animation: pulseBlue 2.5s ease-in-out infinite; }
+  .card-neon.neon-red .neon-pulse { animation: pulseRed 3s ease-in-out infinite; }
+  .card-neon.neon-amber .neon-pulse { animation: pulseAmber 2.2s ease-in-out infinite; }
+
+  @keyframes pulseGreen {
+    0%, 100% { box-shadow: 0 0 8px rgba(16,185,129,0.1); }
+    50% { box-shadow: 0 0 20px rgba(16,185,129,0.25); }
+  }
+  @keyframes pulseBlue {
+    0%, 100% { box-shadow: 0 0 8px rgba(59,130,246,0.1); }
+    50% { box-shadow: 0 0 20px rgba(59,130,246,0.25); }
+  }
+  @keyframes pulseRed {
+    0%, 100% { box-shadow: 0 0 8px rgba(239,68,68,0.1); }
+    50% { box-shadow: 0 0 20px rgba(239,68,68,0.25); }
+  }
+  @keyframes pulseAmber {
+    0%, 100% { box-shadow: 0 0 8px rgba(245,158,11,0.1); }
+    50% { box-shadow: 0 0 20px rgba(245,158,11,0.25); }
+  }
+
+  /* Ripple */
+  .neon-ripple {
+    position: absolute;
+    border-radius: 50%;
+    transform: scale(0);
+    animation: neonRipple 0.6s ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes neonRipple {
+    to { transform: scale(4); opacity: 0; }
+  }
+
+  /* Split reveal */
+  .neon-split-top, .neon-split-bottom {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+                opacity 0.3s ease;
+    opacity: 0;
+  }
+  .card-neon.expanded .neon-split-top,
+  .card-neon.expanded .neon-split-bottom {
+    max-height: 200px;
+    opacity: 1;
+  }
+  .neon-split-bottom {
+    border-top: 1px solid rgba(255,255,255,0.04);
+    margin-top: 12px;
+    padding-top: 12px;
+  }
+  .neon-file {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #aaa;
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  .card-neon.expanded .neon-file {
+    animation: neonSlide 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  .card-neon.expanded .neon-file:nth-child(1) { animation-delay: 0.05s; }
+  .card-neon.expanded .neon-file:nth-child(2) { animation-delay: 0.12s; }
+  .card-neon.expanded .neon-file:nth-child(3) { animation-delay: 0.19s; }
+  .neon-file .icon {
+    width: 4px; height: 4px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .card-neon.neon-green .neon-file .icon { background: #10b981; box-shadow: 0 0 8px #10b981; }
+  .card-neon.neon-blue .neon-file .icon { background: #3b82f6; box-shadow: 0 0 8px #3b82f6; }
+  .card-neon.neon-red .neon-file .icon { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+  .card-neon.neon-amber .neon-file .icon { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
+  .neon-file .size {
+    margin-left: auto;
+    font-size: 11px;
+    color: #444;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  @keyframes neonSlide {
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  /* ============================================================
+     EFFECT 3: CIRCUIT TRACE + 3D POP
+     ============================================================ */
+  .card-circuit {
+    position: relative;
+    background: #0d0d14;
+    border: 1px solid rgba(100, 100, 255, 0.08);
+    border-radius: 16px;
+    padding: 24px;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform-style: preserve-3d;
+    perspective: 800px;
+    overflow: visible;
+  }
+
+  /* Dot grid background */
+  .circuit-dots {
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    background-image: radial-gradient(circle, rgba(100,100,255,0.08) 1px, transparent 1px);
+    background-size: 16px 16px;
+    pointer-events: none;
+    opacity: 0.5;
+    transition: opacity 0.3s;
+  }
+  .card-circuit:hover .circuit-dots { opacity: 1; }
+
+  /* Circuit trace border */
+  .circuit-trace {
+    position: absolute;
+    inset: -1px;
+    border-radius: 16px;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .circuit-trace::before {
+    content: '';
+    position: absolute;
+    width: 30px; height: 30px;
+    background: radial-gradient(circle, #7b61ff 0%, transparent 70%);
+    border-radius: 50%;
+    offset-path: rect(0 100% 100% 0 round 16px);
+    animation: circuitMove 4s linear infinite;
+    filter: blur(2px);
+  }
+  .circuit-trace::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgba(123, 97, 255, 0.15);
+    border-radius: 16px;
+  }
+  @keyframes circuitMove {
+    0% { offset-distance: 0%; }
+    100% { offset-distance: 100%; }
+  }
+
+  .card-circuit:hover {
+    transform: translateY(-4px) rotateX(2deg) rotateY(-1deg);
+    box-shadow: 0 20px 40px rgba(123, 97, 255, 0.1);
+  }
+
+  /* 3D expand */
+  .circuit-expand {
+    transform: translateZ(-20px);
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .card-circuit.expanded .circuit-expand {
+    max-height: 300px;
+    opacity: 1;
+    transform: translateZ(0);
+    margin-top: 16px;
+  }
+  .circuit-file {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(123, 97, 255, 0.04);
+    border: 1px solid rgba(123, 97, 255, 0.08);
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #aab;
+    transform: perspective(800px) translateZ(-30px) rotateX(5deg);
+    opacity: 0;
+  }
+  .card-circuit.expanded .circuit-file {
+    animation: circuitFileIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  .card-circuit.expanded .circuit-file:nth-child(1) { animation-delay: 0.05s; }
+  .card-circuit.expanded .circuit-file:nth-child(2) { animation-delay: 0.12s; }
+  .card-circuit.expanded .circuit-file:nth-child(3) { animation-delay: 0.19s; }
+  .circuit-file .node {
+    width: 8px; height: 8px;
+    border: 2px solid #7b61ff;
+    border-radius: 2px;
+    transform: rotate(45deg);
+    flex-shrink: 0;
+    box-shadow: 0 0 6px rgba(123,97,255,0.4);
+  }
+  .circuit-file .trace-line {
+    width: 16px; height: 1px;
+    background: linear-gradient(90deg, #7b61ff, transparent);
+    flex-shrink: 0;
+  }
+  .circuit-file .size {
+    margin-left: auto;
+    font-size: 11px;
+    color: #445;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  @keyframes circuitFileIn {
+    to {
+      transform: perspective(800px) translateZ(0) rotateX(0deg);
+      opacity: 1;
+    }
+  }
+
+  /* ============================================================
+     EFFECT 4: AURORA PLASMA FLOW
+     ============================================================ */
+  .card-aurora {
+    position: relative;
+    background: #0a0a12;
+    border: 1px solid rgba(255,255,255,0.04);
+    border-radius: 16px;
+    padding: 24px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* Aurora gradient blob */
+  .aurora-blob {
+    position: absolute;
+    width: 200%;
+    height: 200%;
+    top: -50%;
+    left: -50%;
+    background: conic-gradient(
+      from 0deg at 50% 50%,
+      #0d47a1, #1b5e20, #00838f, #4a148c,
+      #e65100, #0d47a1
+    );
+    opacity: 0.06;
+    animation: auroraSpin 12s linear infinite;
+    pointer-events: none;
+    filter: blur(40px);
+  }
+  .card-aurora:hover .aurora-blob { opacity: 0.12; }
+
+  @keyframes auroraSpin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Energy particles */
+  .aurora-particle {
+    position: absolute;
+    width: 3px; height: 3px;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .aurora-particle:nth-child(1) {
+    background: #00e5ff;
+    box-shadow: 0 0 8px #00e5ff;
+    top: 20%; left: 10%;
+    animation: particleFloat1 6s ease-in-out infinite;
+  }
+  .aurora-particle:nth-child(2) {
+    background: #76ff03;
+    box-shadow: 0 0 8px #76ff03;
+    top: 60%; left: 80%;
+    animation: particleFloat2 8s ease-in-out infinite;
+  }
+  .aurora-particle:nth-child(3) {
+    background: #e040fb;
+    box-shadow: 0 0 8px #e040fb;
+    top: 40%; left: 50%;
+    animation: particleFloat3 7s ease-in-out infinite;
+  }
+  .aurora-particle:nth-child(4) {
+    background: #ffab00;
+    box-shadow: 0 0 8px #ffab00;
+    top: 70%; left: 30%;
+    animation: particleFloat4 5s ease-in-out infinite;
+  }
+
+  @keyframes particleFloat1 {
+    0%, 100% { transform: translate(0, 0); opacity: 0.3; }
+    50% { transform: translate(30px, -20px); opacity: 0.8; }
+  }
+  @keyframes particleFloat2 {
+    0%, 100% { transform: translate(0, 0); opacity: 0.4; }
+    50% { transform: translate(-25px, 15px); opacity: 0.7; }
+  }
+  @keyframes particleFloat3 {
+    0%, 100% { transform: translate(0, 0); opacity: 0.2; }
+    50% { transform: translate(15px, 25px); opacity: 0.9; }
+  }
+  @keyframes particleFloat4 {
+    0%, 100% { transform: translate(0, 0); opacity: 0.3; }
+    50% { transform: translate(-20px, -15px); opacity: 0.6; }
+  }
+
+  .card-aurora:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255,255,255,0.08);
+  }
+
+  /* Aurora expand */
+  .aurora-expand {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .card-aurora.expanded .aurora-expand {
+    max-height: 300px;
+    opacity: 1;
+    margin-top: 16px;
+  }
+  .aurora-file {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #99a;
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+    background: linear-gradient(135deg, rgba(0,229,255,0.03), rgba(118,255,3,0.03));
+    border: 1px solid rgba(255,255,255,0.03);
+  }
+  .card-aurora.expanded .aurora-file {
+    animation: auroraFileIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  .card-aurora.expanded .aurora-file:nth-child(1) { animation-delay: 0.05s; }
+  .card-aurora.expanded .aurora-file:nth-child(2) { animation-delay: 0.12s; }
+  .card-aurora.expanded .aurora-file:nth-child(3) { animation-delay: 0.19s; }
+  .aurora-file .aurora-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: auroraDotPulse 2s ease-in-out infinite;
+  }
+  .aurora-file:nth-child(1) .aurora-dot { background: #00e5ff; box-shadow: 0 0 6px #00e5ff; }
+  .aurora-file:nth-child(2) .aurora-dot { background: #76ff03; box-shadow: 0 0 6px #76ff03; }
+  .aurora-file:nth-child(3) .aurora-dot { background: #e040fb; box-shadow: 0 0 6px #e040fb; }
+  .aurora-file .size {
+    margin-left: auto;
+    font-size: 11px;
+    color: #445;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  @keyframes auroraFileIn {
+    to { transform: translateY(0) scale(1); opacity: 1; }
+  }
+  @keyframes auroraDotPulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+
+  /* ============================================================
+     SHARED CARD CONTENT
+     ============================================================ */
+  .card-content { position: relative; z-index: 2; }
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .card-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .card-icon.green { background: rgba(16,185,129,0.1); color: #10b981; }
+  .card-icon.blue { background: rgba(59,130,246,0.1); color: #3b82f6; }
+  .card-icon.red { background: rgba(239,68,68,0.1); color: #ef4444; }
+  .card-icon.amber { background: rgba(245,158,11,0.1); color: #f59e0b; }
+  .card-number {
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1;
+    color: #f0f0f0;
+  }
+  .card-label-text {
+    font-size: 13px;
+    color: #666;
+    margin-top: 2px;
+  }
+  .card-hint {
+    font-size: 11px;
+    color: #444;
+    margin-top: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+  }
+
+  /* Click hint animation */
+  .click-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    opacity: 0.5;
+    transition: opacity 0.3s;
+  }
+  .card-hud:hover .click-hint,
+  .card-neon:hover .click-hint,
+  .card-circuit:hover .click-hint,
+  .card-aurora:hover .click-hint { opacity: 1; }
+</style>
+</head>
+<body>
+<h1>What Changed? — Card Effects Demo</h1>
+<p class="subtitle">Click each card to see the expand effect. Pick your favorite!</p>
+
+<div class="grid">
+  <!-- EFFECT 1: HOLOGRAPHIC HUD GLASS -->
+  <div class="card-wrapper">
+    <div class="card-label">Card 1</div>
+    <div class="card-hud" onclick="toggleExpand(this)">
+      <div class="hud-scanline"></div>
+      <div class="card-content">
+        <div class="card-header">
+          <div class="card-icon green">+</div>
+          <div>
+            <div class="card-number">3</div>
+            <div class="card-label-text">New Files</div>
+          </div>
+        </div>
+        <div class="card-hint"><span class="click-hint">▸ click to expand</span></div>
+      </div>
+      <div class="hud-expand">
+        <div class="hud-file"><span class="dot"></span>report.pdf<span class="path">C:\Users\Docs</span></div>
+        <div class="hud-file"><span class="dot"></span>data.csv<span class="path">C:\Projects\app</span></div>
+        <div class="hud-file"><span class="dot"></span>notes.md<span class="path">C:\Users\Desktop</span></div>
+      </div>
+    </div>
+    <div class="effect-name">Holographic HUD Glass</div>
+  </div>
+
+  <!-- EFFECT 2: NEON PULSE + SPLIT OPEN -->
+  <div class="card-wrapper">
+    <div class="card-label">Card 2</div>
+    <div class="card-neon neon-blue" onclick="toggleNeon(this, event)">
+      <div class="neon-glow"></div>
+      <div class="neon-pulse"></div>
+      <div class="card-content">
+        <div class="card-header">
+          <div class="card-icon blue">✎</div>
+          <div>
+            <div class="card-number">1</div>
+            <div class="card-label-text">Modified</div>
+          </div>
+        </div>
+        <div class="card-hint"><span class="click-hint">▸ click to reveal</span></div>
+      </div>
+      <div class="neon-split-bottom">
+        <div class="neon-file"><span class="icon"></span>server.ts<span class="size">14.2 KB</span></div>
+      </div>
+    </div>
+    <div class="effect-name">Neon Pulse + Split Open</div>
+  </div>
+
+  <!-- EFFECT 3: CIRCUIT TRACE + 3D POP -->
+  <div class="card-wrapper">
+    <div class="card-label">Card 3</div>
+    <div class="card-circuit" onclick="toggleExpand(this)">
+      <div class="circuit-dots"></div>
+      <div class="circuit-trace"></div>
+      <div class="card-content">
+        <div class="card-header">
+          <div class="card-icon red">✕</div>
+          <div>
+            <div class="card-number">2</div>
+            <div class="card-label-text">Deleted</div>
+          </div>
+        </div>
+        <div class="card-hint"><span class="click-hint">▸ click to pop</span></div>
+      </div>
+      <div class="circuit-expand">
+        <div class="circuit-file"><span class="node"></span><span class="trace-line"></span>old_config.json<span class="size">2.1 KB</span></div>
+        <div class="circuit-file"><span class="node"></span><span class="trace-line"></span>temp.log<span class="size">48 KB</span></div>
+      </div>
+    </div>
+    <div class="effect-name">Circuit Trace + 3D Pop</div>
+  </div>
+
+  <!-- EFFECT 4: AURORA PLASMA FLOW -->
+  <div class="card-wrapper">
+    <div class="card-label">Card 4</div>
+    <div class="card-aurora" onclick="toggleExpand(this)">
+      <div class="aurora-blob"></div>
+      <div class="aurora-particle"></div>
+      <div class="aurora-particle"></div>
+      <div class="aurora-particle"></div>
+      <div class="aurora-particle"></div>
+      <div class="card-content">
+        <div class="card-header">
+          <div class="card-icon amber">↔</div>
+          <div>
+            <div class="card-number">1</div>
+            <div class="card-label-text">Moved</div>
+          </div>
+        </div>
+        <div class="card-hint"><span class="click-hint">▸ click to flow</span></div>
+      </div>
+      <div class="aurora-expand">
+        <div class="aurora-file"><span class="aurora-dot"></span>design.fig<span class="size">3.4 MB</span></div>
+        <div class="aurora-file"><span class="aurora-dot"></span>README.md<span class="size">1.8 KB</span></div>
+      </div>
+    </div>
+    <div class="effect-name">Aurora Plasma Flow</div>
+  </div>
+</div>
+
+<script>
+function toggleExpand(el) {
+  el.classList.toggle('expanded');
+}
+
+function toggleNeon(el, event) {
+  // Create ripple
+  const rect = el.getBoundingClientRect();
+  const ripple = document.createElement('div');
+  ripple.className = 'neon-ripple';
+  const size = Math.max(rect.width, rect.height);
+  ripple.style.width = ripple.style.height = size + 'px';
+  ripple.style.left = (event.clientX - rect.left - size / 2) + 'px';
+  ripple.style.top = (event.clientY - rect.top - size / 2) + 'px';
+
+  // Get neon color
+  if (el.classList.contains('neon-green')) ripple.style.background = 'rgba(16,185,129,0.15)';
+  else if (el.classList.contains('neon-blue')) ripple.style.background = 'rgba(59,130,246,0.15)';
+  else if (el.classList.contains('neon-red')) ripple.style.background = 'rgba(239,68,68,0.15)';
+  else ripple.style.background = 'rgba(245,158,11,0.15)';
+
+  el.appendChild(ripple);
+  setTimeout(() => ripple.remove(), 600);
+
+  el.classList.toggle('expanded');
+}
+
+// Mouse position tracking for HUD glass
+document.querySelectorAll('.card-hud').forEach(card => {
+  card.addEventListener('mousemove', (e) => {
+    const rect = card.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    card.style.setProperty('--mx', x + '%');
+    card.style.setProperty('--my', y + '%');
+  });
+});
+</script>
+</body>
+</html>

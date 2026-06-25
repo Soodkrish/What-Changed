@@ -1,0 +1,23 @@
+{
+  "identifier": "default",
+  "description": "Read-only capabilities for What Changed? — no file modification, deletion, or network access",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-close",
+    "core:window:allow-set-focus",
+    "core:window:allow-minimize",
+    "core:window:allow-is-visible",
+    "core:window:allow-set-title",
+    "core:event:allow-emit",
+    "core:event:allow-emit-to",
+    "core:event:allow-listen",
+    "core:tray:default",
+    "dialog:default",
+    "dialog:allow-open",
+    "dialog:allow-ask",
+    "dialog:allow-message"
+  ]
+}
