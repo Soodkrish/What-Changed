@@ -132,6 +132,27 @@ impl PathValidator {
             }
         }
 
+        // 12. Reject Windows reserved device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+        #[cfg(target_os = "windows")]
+        {
+            if let Some(name) = canonical.file_name().and_then(|n| n.to_str()) {
+                let stem = name.split('.').next().unwrap_or("").to_uppercase();
+                const RESERVED: &[&str] = &[
+                    "CON","PRN","AUX","NUL",
+                    "COM1","COM2","COM3","COM4","COM5","COM6","COM7","COM8","COM9",
+                    "LPT1","LPT2","LPT3","LPT4","LPT5","LPT6","LPT7","LPT8","LPT9",
+                ];
+                if RESERVED.contains(&stem.as_str()) {
+                    return Err("Windows reserved name is not allowed".to_string());
+                }
+            }
+            // Reject NTFS Alternate Data Streams (colon after drive letter)
+            let without_drive = if canonical_str.len() > 2 { &canonical_str[2..] } else { "" };
+            if without_drive.contains(':') {
+                return Err("Alternate data streams are not allowed".to_string());
+            }
+        }
+
         Ok(())
     }
 
@@ -226,6 +247,27 @@ impl PathValidator {
                 if !drive.is_ascii_alphabetic() {
                     return Err("Invalid drive letter".to_string());
                 }
+            }
+        }
+
+        // 12. Reject Windows reserved device names
+        #[cfg(target_os = "windows")]
+        {
+            if let Some(name) = canonical.file_name().and_then(|n| n.to_str()) {
+                let stem = name.split('.').next().unwrap_or("").to_uppercase();
+                const RESERVED: &[&str] = &[
+                    "CON","PRN","AUX","NUL",
+                    "COM1","COM2","COM3","COM4","COM5","COM6","COM7","COM8","COM9",
+                    "LPT1","LPT2","LPT3","LPT4","LPT5","LPT6","LPT7","LPT8","LPT9",
+                ];
+                if RESERVED.contains(&stem.as_str()) {
+                    return Err("Windows reserved name is not allowed".to_string());
+                }
+            }
+            // Reject NTFS Alternate Data Streams
+            let without_drive = if canonical_str.len() > 2 { &canonical_str[2..] } else { "" };
+            if without_drive.contains(':') {
+                return Err("Alternate data streams are not allowed".to_string());
             }
         }
 

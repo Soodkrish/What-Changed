@@ -68,6 +68,7 @@ impl Scanner {
         let mut suspicious_files = Vec::new();
 
         let walker = WalkDir::new(dir_path)
+            .max_depth(20)
             .follow_links(false)
             .into_iter()
             .filter_entry(|e| !is_skipped(e.file_name().to_str().unwrap_or("")));
@@ -323,6 +324,12 @@ impl Scanner {
 
     /// Compute SHA-256 hash of a file (for duplicate detection)
     pub fn hash_file(path: &Path) -> Result<String, String> {
+        // Skip files over 100MB to prevent blocking the scan thread
+        if let Ok(meta) = fs::metadata(path) {
+            if meta.len() > 100 * 1024 * 1024 {
+                return Err("File too large for hashing".to_string());
+            }
+        }
         let mut file = fs::File::open(path).map_err(|e| format!("Cannot open {}: {}", path.display(), e))?;
         let mut hasher = Sha256::new();
         let mut buffer = [0u8; 8192];

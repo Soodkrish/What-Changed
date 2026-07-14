@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, X, FilePlus, FileEdit, FileX, ArrowRightLeft } from "lucide-react";
 import type { ChangeRecord } from "../../lib/tauri";
-import { searchChanges } from "../../lib/tauri";
+import { searchChanges, parseDbTimestamp } from "../../lib/tauri";
 
 const changeTypeConfig = {
   NEW: { icon: FilePlus, color: "text-emerald-600", bg: "bg-emerald-50" },
@@ -63,7 +63,7 @@ export function SearchBar({ onResultClick }: SearchBarProps) {
   }, [query]);
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const date = parseDbTimestamp(dateStr);
     return date.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",

@@ -15,6 +15,12 @@ build/
 *.so
 *.dylib
 *.app
+*.msi
+*.nsis
+*.dmg
+*.deb
+*.rpm
+*.AppImage
 
 # ===========================
 # Tauri / Rust

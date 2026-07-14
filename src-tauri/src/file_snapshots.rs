@@ -14,8 +14,10 @@ const DEFAULT_EXTENSIONS: &[&str] = &[
     ".yaml", ".yml", ".toml", ".cfg", ".xml", ".html", ".css",
     ".sql", ".rs", ".go", ".java", ".c", ".cpp", ".h", ".sh",
     ".bat", ".ps1", ".rb", ".php", ".swift", ".kt", ".scala",
-    ".vue", ".svelte", ".graphql", ".proto", ".env",
+    ".vue", ".svelte", ".graphql", ".proto",
     ".ini", ".conf", ".log", ".csv", ".tsv",
+    // NOTE: .env intentionally excluded — contains secrets (API keys, tokens)
+    // Users can add .env manually via settings if they want it snapshotted
 ];
 
 pub struct FileSnapshotManager {
@@ -93,50 +95,18 @@ impl FileSnapshotManager {
 
     /// Validate that a restore destination is within monitored folders
     fn validate_restore_path(&self, original_path: &str) -> Result<(), String> {
-        // Reject traversal
-        let path_str = original_path.replace('\\', "/");
-        if path_str.contains("/../") || path_str.ends_with("/..") {
-            return Err("Path traversal detected".to_string());
-        }
+        // Delegate to the full PathValidator (includes traversal, null bytes, UNC,
+        // symlinks, reserved names, ADS, depth limit, and blocked directories)
+        crate::security::PathValidator::validate_file_path(original_path)?;
 
-        // Reject system directories
-        let lower = path_str.to_lowercase();
-        let blocked = [
-            "/windows/system32", "/windows/syswow64", "/windows/servicing",
-            "/program files", "/program files (x86)",
-            "/usr/bin", "/usr/sbin", "/usr/lib", "/sbin", "/bin", "/etc", "/proc", "/sys",
-        ];
-        for b in &blocked {
-            if lower.starts_with(b) {
-                return Err(format!("Cannot restore to system directory: {}", b));
-            }
-            // Also check after stripping drive letter prefix (Windows: "c:/windows/...")
-            if let Some(after_drive) = lower.strip_prefix(|c: char| c.is_ascii_alphabetic()) {
-                let after_colon = after_drive.strip_prefix(':').unwrap_or(after_drive);
-                if after_colon.starts_with(b) {
-                    return Err(format!("Cannot restore to system directory: {}", b));
-                }
-            }
-        }
-
-        // Reject extended-length paths
-        if original_path.starts_with("\\\\?\\") || original_path.starts_with("\\\\.\\") {
-            return Err("Extended-length paths not allowed".to_string());
-        }
-
-        // Check the path is under a monitored folder
+        // Enforce monitored-directory restriction — restore must target a monitored folder
         let monitored = self.get_monitored_folders();
         let is_monitored = monitored.iter().any(|folder| {
-            let folder_lower = folder.replace('\\', "/").to_lowercase();
-            let path_lower = path_str.to_lowercase();
-            path_lower.starts_with(&folder_lower)
+            original_path.starts_with(folder.as_str())
         });
 
         if !is_monitored && !monitored.is_empty() {
-            log::warn!(
-                "Restore target '{}' is not under any monitored folder",
-                original_path
-            );
+            return Err("Restore target is not within a monitored directory".to_string());
             // Allow but log — the user may legitimately restore outside monitored dirs
         }
 
@@ -191,19 +161,20 @@ impl FileSnapshotManager {
             return Err("File not eligible for snapshot".to_string());
         }
 
-        // Read file content
-        let mut file = fs::File::open(path).map_err(|e| format!("Failed to open file: {}", e))?;
-        let mut content = Vec::new();
-        file.read_to_end(&mut content)
-            .map_err(|e| format!("Failed to read file: {}", e))?;
-
-        // Compute SHA-256 hash of original content
+        // Stream-compute SHA-256 first (avoids loading entire file if hash matches)
         use sha2::{Sha256, Digest};
+        let mut file = fs::File::open(path).map_err(|e| format!("Failed to open file: {}", e))?;
         let mut hasher = Sha256::new();
-        hasher.update(&content);
+        let mut buf = [0u8; 65536]; // 64KB streaming buffer
+        loop {
+            let n = file.read(&mut buf).map_err(|e| format!("Read error: {}", e))?;
+            if n == 0 { break; }
+            hasher.update(&buf[..n]);
+        }
         let content_hash = format!("{:x}", hasher.finalize());
 
         // M32: Skip if content hash matches most recent snapshot (dedup)
+        // This avoids loading file content into memory for unchanged files
         if let Ok(snapshots) = self.db.get_snapshots_for_file(file_path) {
             if let Some(latest) = snapshots.first() {
                 if latest.file_hash.as_deref() == Some(&content_hash) {
@@ -211,6 +182,12 @@ impl FileSnapshotManager {
                 }
             }
         }
+
+        // Only now read full content (needed for zstd compression)
+        let mut file = fs::File::open(path).map_err(|e| format!("Failed to reopen file: {}", e))?;
+        let mut content = Vec::with_capacity(size.min(102400) as usize);
+        file.read_to_end(&mut content)
+            .map_err(|e| format!("Failed to read file: {}", e))?;
 
         // Compress with zstd (level 1 for speed)
         let compressed = zstd::encode_all(&content[..], 1)
@@ -283,7 +260,7 @@ impl FileSnapshotManager {
     }
 
     /// Decompress with size limit to prevent OOM from decompression bombs
-    fn decompress_with_limit(compressed: &[u8], max_bytes: usize) -> Result<Vec<u8>, String> {
+    pub(crate) fn decompress_with_limit(compressed: &[u8], max_bytes: usize) -> Result<Vec<u8>, String> {
         let mut decoder = zstd::Decoder::new(compressed)
             .map_err(|e| format!("Decoder init failed: {}", e))?;
         let mut output = Vec::new();

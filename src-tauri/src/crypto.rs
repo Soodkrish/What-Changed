@@ -44,7 +44,8 @@ impl CryptoManager {
 
     /// Decrypt prefixed base64-encoded (nonce + ciphertext + GCM tag) back to plaintext.
     pub fn decrypt(&self, encoded: &str) -> Result<String, String> {
-        let b64_part = encoded.strip_prefix(ENCRYPTED_PREFIX).unwrap_or(encoded);
+        let b64_part = encoded.strip_prefix(ENCRYPTED_PREFIX)
+            .ok_or("Data is not encrypted (missing wcenc: prefix)")?;
         let combined = B64
             .decode(b64_part)
             .map_err(|e| format!("Invalid base64: {}", e))?;
@@ -89,7 +90,7 @@ impl CryptoManager {
             fs::write(&key_path, key)
                 .map_err(|e| format!("Cannot write encryption key: {}", e))?;
             Self::set_key_permissions(&key_path)?;
-            log::info!("Generated new encryption key at {}", key_path.display());
+            log::info!("Generated new encryption key");
             Ok(key)
         }
     }

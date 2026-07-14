@@ -272,18 +272,26 @@ impl RecycleBinManager {
         }
 
         // Second try: PowerShell COM object (Shell.Application) as fallback
-        // Use -NoProfile and inline the args directly into the script via single-quoted strings
-        // with proper escaping to prevent command injection:
-        //   - Single quotes → doubled ('' ) for PowerShell string literals
-        //   - Backticks → escaped (`` ` ``) to prevent PowerShell escape sequences
-        let safe_filename = filename.replace('`', "``").replace('\'', "''");
-        let safe_original = original_path.replace('`', "``").replace('\'', "''");
+        // Write a temp .ps1 script and invoke via -File to avoid command injection.
+        // The script receives filename and path as arguments — no interpolation.
         let ps_script = format!(
-            "$s = New-Object -ComObject Shell.Application; $rb = $s.NameSpace(0xa); foreach ($item in $rb.Items()) {{ if ($item.Name -eq '{safe_filename}') {{ $destDir = Split-Path '{safe_original}' -Parent; $s.Namespace($destDir).MoveHere($item); break }} }}"
+            "param($fn, $rp)\n\
+             $s = New-Object -ComObject Shell.Application\n\
+             $rb = $s.NameSpace(0xa)\n\
+             foreach ($item in $rb.Items()) {{\n\
+                 if ($item.Name -eq $fn) {{\n\
+                     $destDir = Split-Path $rp -Parent\n\
+                     $s.Namespace($destDir).MoveHere($item)\n\
+                     break\n\
+                 }}\n\
+             }}"
         );
+        let ps_path = std::env::temp_dir().join(format!("wc_restore_{}.ps1", entry_id));
+        let _ = std::fs::write(&ps_path, &ps_script);
         let restore_result = std::process::Command::new("powershell")
-            .args(["-NoProfile", "-Command", &ps_script])
+            .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", &ps_path.to_string_lossy(), "--", filename, original_path])
             .output();
+        let _ = std::fs::remove_file(&ps_path);
 
         match restore_result {
             Ok(output) if output.status.success() => {
@@ -590,51 +598,9 @@ impl RecycleBinManager {
 
 /// Validate that a restore path is within allowed boundaries
 fn validate_restore_path(path: &str) -> Result<(), String> {
-    // Reject paths with traversal components
-    let path_str = path.replace('\\', "/");
-    if path_str.contains("/../") || path_str.ends_with("/..") {
-        return Err("Path traversal detected".to_string());
-    }
-
-    // Reject system directories
-    let lower = path_str.to_lowercase();
-    let blocked = [
-        // Windows paths (after drive letter, e.g. "c:/windows/system32/...")
-        "/windows/system32",
-        "/windows/syswow64",
-        "/windows/servicing",
-        "/program files",
-        "/program files (x86)",
-        // Unix paths
-        "/usr/bin",
-        "/usr/sbin",
-        "/usr/lib",
-        "/sbin",
-        "/bin",
-        "/etc",
-        "/proc",
-        "/sys",
-    ];
-
-    for b in &blocked {
-        if lower.starts_with(b) {
-            return Err(format!("Cannot restore to system directory: {}", b));
-        }
-        // Also check after stripping drive letter prefix (Windows: "c:/windows/...")
-        if let Some(after_drive) = lower.strip_prefix(|c: char| c.is_ascii_alphabetic()) {
-            let after_colon = after_drive.strip_prefix(':').unwrap_or(after_drive);
-            if after_colon.starts_with(b) {
-                return Err(format!("Cannot restore to system directory: {}", b));
-            }
-        }
-    }
-
-    // Reject extended-length path prefixes
-    if path.starts_with("\\\\?\\") || path.starts_with("\\\\.\\") {
-        return Err("Extended-length paths not allowed".to_string());
-    }
-
-    Ok(())
+    // Delegate to the full PathValidator (covers traversal, null bytes, UNC,
+    // symlinks, reserved names, ADS, depth limit, and blocked directories)
+    crate::security::PathValidator::validate_file_path(path)
 }
 
 struct RecycleBinCandidate {

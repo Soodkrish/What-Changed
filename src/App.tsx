@@ -1,17 +1,20 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { Layout } from "./components/Common/Layout";
 import { Dashboard } from "./components/Dashboard/Dashboard";
-import { Settings } from "./components/Settings/Settings";
-import { DuplicatesView } from "./components/Duplicates/DuplicatesView";
-import { RecoveryView } from "./components/Recovery/RecoveryView";
-import { ChangelogGenerator } from "./components/Common/ChangelogGenerator";
 import { ScanProgress } from "./components/Common/ScanProgress";
 import { ErrorBoundary } from "./components/Common/ErrorBoundary";
 import { OnboardingFlow } from "./components/Common/OnboardingFlow";
+import { UpdateBanner } from "./components/Common/UpdateBanner";
 import { listen } from "@tauri-apps/api/event";
 import { useDarkMode } from "./hooks/useDarkMode";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { getMonitoredFolders, scanAll } from "./lib/tauri";
+import { getMonitoredFolders, scanAll, checkForUpdates, type UpdateInfo } from "./lib/tauri";
+
+// Lazy-load non-default views (code splitting — saves 10-15MB upfront)
+const Settings = lazy(() => import("./components/Settings/Settings").then(m => ({ default: m.Settings })));
+const DuplicatesView = lazy(() => import("./components/Duplicates/DuplicatesView").then(m => ({ default: m.DuplicatesView })));
+const RecoveryView = lazy(() => import("./components/Recovery/RecoveryView").then(m => ({ default: m.RecoveryView })));
+const ChangelogGenerator = lazy(() => import("./components/Common/ChangelogGenerator").then(m => ({ default: m.ChangelogGenerator })));
 
 type ViewType = "dashboard" | "settings" | "duplicates" | "recovery" | "changelog";
 
@@ -24,6 +27,8 @@ function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [closeToast, setCloseToast] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [updateDismissed, setUpdateDismissed] = useState(false);
 
   // Check if this is a first run
   useEffect(() => {
@@ -37,6 +42,17 @@ function App() {
       .catch(() => {
         setOnboardingChecked(true);
       });
+  }, []);
+
+  // Check for updates on startup (once per session)
+  useEffect(() => {
+    checkForUpdates()
+      .then((info) => {
+        if (info.has_update) {
+          setUpdateInfo(info);
+        }
+      })
+      .catch(() => {}); // silently fail if offline or GitHub unreachable
   }, []);
 
   useEffect(() => {
@@ -94,31 +110,44 @@ function App() {
         <OnboardingFlow onComplete={() => setShowOnboarding(false)} />
       )}
       <Layout currentView={currentView} onNavigate={setCurrentView} dark={dark} onToggleDark={toggleDark}>
+        {/* Update notification banner */}
+        {updateInfo && !updateDismissed && (
+          <UpdateBanner
+            updateInfo={updateInfo}
+            onDismiss={() => setUpdateDismissed(true)}
+          />
+        )}
         {currentView === "dashboard" && (
           <ErrorBoundary fallbackTitle="Dashboard Error">
             <Dashboard key={refreshKey} />
           </ErrorBoundary>
         )}
-        {currentView === "settings" && (
-          <ErrorBoundary fallbackTitle="Settings Error">
-            <Settings />
-          </ErrorBoundary>
-        )}
-        {currentView === "duplicates" && (
-          <ErrorBoundary fallbackTitle="Duplicates Error">
-            <DuplicatesView key={refreshKey} />
-          </ErrorBoundary>
-        )}
-        {currentView === "recovery" && (
-          <ErrorBoundary fallbackTitle="Recovery Error">
-            <RecoveryView />
-          </ErrorBoundary>
-        )}
-        {currentView === "changelog" && (
-          <ErrorBoundary fallbackTitle="Changelog Error">
-            <ChangelogGenerator />
-          </ErrorBoundary>
-        )}
+        <Suspense fallback={
+          <div className="flex items-center justify-center h-64">
+            <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        }>
+          {currentView === "settings" && (
+            <ErrorBoundary fallbackTitle="Settings Error">
+              <Settings />
+            </ErrorBoundary>
+          )}
+          {currentView === "duplicates" && (
+            <ErrorBoundary fallbackTitle="Duplicates Error">
+              <DuplicatesView key={refreshKey} />
+            </ErrorBoundary>
+          )}
+          {currentView === "recovery" && (
+            <ErrorBoundary fallbackTitle="Recovery Error">
+              <RecoveryView />
+            </ErrorBoundary>
+          )}
+          {currentView === "changelog" && (
+            <ErrorBoundary fallbackTitle="Changelog Error">
+              <ChangelogGenerator />
+            </ErrorBoundary>
+          )}
+        </Suspense>
         <ScanProgress onComplete={handleScanComplete} />
       </Layout>
 

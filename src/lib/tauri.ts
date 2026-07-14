@@ -282,6 +282,24 @@ export async function restoreFileSnapshot(snapshotId: number): Promise<string> {
   return invoke("restore_file_snapshot", { snapshotId });
 }
 
+export async function saveSnapshotToFile(snapshotId: number, destPath: string): Promise<string> {
+  return invoke("save_snapshot_to_file", { snapshotId, destPath });
+}
+
+export interface SnapshotFileGroup {
+  original_path: string;
+  original_filename: string;
+  snapshot_count: number;
+  total_size: number;
+  latest_snapshot: string;
+  oldest_snapshot: string;
+  file_exists: boolean;
+}
+
+export async function getSnapshotsGroupedByFile(): Promise<SnapshotFileGroup[]> {
+  return invoke("get_snapshots_grouped_by_file");
+}
+
 export async function getSnapshotStats(): Promise<[number, number]> {
   return invoke("get_snapshot_stats");
 }
@@ -521,6 +539,11 @@ export async function fireWebhookForChanges(changes: ChangeRecord[]): Promise<We
   return invoke("fire_webhook_for_changes", { changesJson: JSON.stringify(changes) });
 }
 
+/** Run webhook diagnostics — returns a human-readable report tracing the entire pipeline. */
+export async function diagnoseWebhooks(): Promise<string> {
+  return invoke("diagnose_webhooks");
+}
+
 // --- Phase 2: Blame View ---
 
 export interface BlameLine {
@@ -645,8 +668,25 @@ export function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
+/**
+ * Parse a timestamp string from the database.
+ * SQLite CURRENT_TIMESTAMP returns bare UTC like "2026-07-13 10:30:00" — no timezone.
+ * JavaScript's new Date() interprets those as LOCAL time, causing a timezone offset bug.
+ * This function appends "Z" (UTC) when no timezone indicator is present.
+ * Timestamps from chrono (with +00:00 or Z) are left untouched.
+ */
+export function parseDbTimestamp(dateStr: string): Date {
+  if (!dateStr) return new Date(0);
+  // If the string already has a timezone suffix (Z, +HH:MM, -HH:MM), use as-is
+  if (/[Zz]|[+-]\d{2}:\d{2}$/.test(dateStr)) {
+    return new Date(dateStr);
+  }
+  // Bare UTC timestamp — append Z so JS parses it as UTC, not local
+  return new Date(dateStr + "Z");
+}
+
 export function timeAgo(dateStr: string): string {
-  const date = new Date(dateStr);
+  const date = parseDbTimestamp(dateStr);
   const now = new Date();
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
@@ -654,4 +694,18 @@ export function timeAgo(dateStr: string): string {
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
   return `${Math.floor(seconds / 86400)}d ago`;
+}
+
+// --- Update Checker ---
+
+export interface UpdateInfo {
+  has_update: boolean;
+  current_version: string;
+  latest_version: string;
+  download_url: string;
+  release_notes: string;
+}
+
+export async function checkForUpdates(): Promise<UpdateInfo> {
+  return invoke("check_for_updates");
 }

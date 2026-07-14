@@ -13,7 +13,7 @@ import {
   Cloud,
 } from "lucide-react";
 import type { ScanBatchWithChanges, ChangeRecord } from "../../lib/tauri";
-import { timeAgo, isCloudBacked } from "../../lib/tauri";
+import { timeAgo, isCloudBacked, parseDbTimestamp } from "../../lib/tauri";
 import { invoke } from "@tauri-apps/api/core";
 
 interface FolderCardProps {
@@ -33,7 +33,7 @@ const changeTypeConfig = {
 };
 
 function formatTime(dateStr: string): string {
-  const date = new Date(dateStr);
+  const date = parseDbTimestamp(dateStr);
   return date.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",

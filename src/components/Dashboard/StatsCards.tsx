@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { FilePlus, FileEdit, FileX, ArrowRightLeft, ChevronRight, ArrowRight, Loader2, X } from "lucide-react";
 import { diffLines as computeDiffLines } from "diff";
 import type { ChangeStats, ChangeRecord } from "../../lib/tauri";
-import { getSnapshotsForFile, getSnapshotContent, getFileContent } from "../../lib/tauri";
+import { getSnapshotsForFile, getSnapshotContent, getFileContent, parseDbTimestamp } from "../../lib/tauri";
 
 interface StatsCardsProps {
   stats: ChangeStats;
@@ -19,7 +19,7 @@ const shortPath = (p: string | null) => {
 
 const timeSince = (iso: string | null) => {
   if (!iso) return "";
-  const diff = Date.now() - new Date(iso).getTime();
+  const diff = Date.now() - parseDbTimestamp(iso).getTime();
   if (diff < 60_000) return "just now";
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
@@ -50,10 +50,11 @@ function InlineDiff({ filePath }: { filePath: string }) {
           }
           return;
         }
-        const [oldSnap, newSnap] = snapshots.slice(0, 2);
-        const [oldContent, newContent] = await Promise.all([
-          getSnapshotContent(oldSnap.id).catch(() => ""),
+        // snapshots are ordered created_at DESC — [0]=newest, [1]=older
+        const [newSnap, oldSnap] = snapshots.slice(0, 2);
+        const [newContent, oldContent] = await Promise.all([
           getSnapshotContent(newSnap.id).catch(() => ""),
+          getSnapshotContent(oldSnap.id).catch(() => ""),
         ]);
         if (cancelled) return;
         const changes = computeDiffLines(oldContent || "", newContent || "");

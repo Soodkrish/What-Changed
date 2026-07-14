@@ -98,7 +98,7 @@ export function FileDiffViewer({ snapshotId, filePath, snapshotDate, onClose }: 
 
         if (!cancelled) setDiffLines(result);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+        if (!cancelled) setError("Failed to load diff. Please try again.");
       } finally {
         if (!cancelled) setLoading(false);
       }

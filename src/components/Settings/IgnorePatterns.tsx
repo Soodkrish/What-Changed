@@ -69,11 +69,11 @@ export function IgnorePatterns({ folders }: IgnorePatternsProps) {
       </p>
 
       {/* Add pattern form */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-4 items-stretch">
         <select
           value={selectedFolder ?? ""}
           onChange={(e) => setSelectedFolder(Number(e.target.value) || null)}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+          className="h-9 px-3 text-sm border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white shrink-0"
         >
           <option value="">All folders</option>
           {folders.map((f) => (
@@ -85,7 +85,7 @@ export function IgnorePatterns({ folders }: IgnorePatternsProps) {
         <select
           value={patternType}
           onChange={(e) => setPatternType(e.target.value as "glob" | "contains")}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+          className="h-9 px-3 text-sm border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white shrink-0"
         >
           <option value="glob">Glob</option>
           <option value="contains">Contains</option>
@@ -95,13 +95,15 @@ export function IgnorePatterns({ folders }: IgnorePatternsProps) {
           value={newPattern}
           onChange={(e) => setNewPattern(e.target.value)}
           placeholder="*.log, **/*.tmp, temp..."
-          className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-500"
+          className="flex-1 min-w-0 h-9 px-3 text-sm border border-gray-200 rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-500"
           onKeyDown={(e) => e.key === "Enter" && handleAdd()}
         />
         <button
           onClick={handleAdd}
           disabled={!newPattern.trim()}
-          className="px-3 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+          aria-label="Add ignore pattern"
+          title="Add pattern"
+          className="flex items-center justify-center h-9 w-9 shrink-0 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
         >
           <Plus className="w-4 h-4" />
         </button>

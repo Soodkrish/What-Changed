@@ -49,8 +49,8 @@ export function FileTypeAnalytics() {
             <BarChart3 className="w-5 h-5 text-indigo-600" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-gray-900">File Analytics</h3>
-            <p className="text-sm text-gray-500">Changes by file type & trends</p>
+            <h3 className="text-base font-bold text-gray-900 dark:text-white">File Analytics</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Changes by file type & trends</p>
           </div>
         </div>
         <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">

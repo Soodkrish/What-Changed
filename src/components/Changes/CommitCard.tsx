@@ -11,7 +11,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import type { ScanBatchWithChanges } from "../../lib/tauri";
-import { formatBytes, timeAgo } from "../../lib/tauri";
+import { formatBytes, timeAgo, parseDbTimestamp } from "../../lib/tauri";
 import { invoke } from "@tauri-apps/api/core";
 
 interface CommitCardProps {
@@ -34,7 +34,7 @@ function getFolderFromPath(filePath: string): string {
 }
 
 function formatTime(dateStr: string): string {
-  const date = new Date(dateStr);
+  const date = parseDbTimestamp(dateStr);
   return date.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",

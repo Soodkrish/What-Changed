@@ -1,6 +1,6 @@
 [package]
 name = "what-changed"
-version = "0.1.0"
+version = "1.0.0"
 description = "What Changed? - A lightweight file system monitor"
 authors = ["What Changed Team"]
 edition = "2021"
@@ -13,22 +13,23 @@ crate-type = ["lib", "cdylib", "staticlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon"] }
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
 tauri-plugin-notification = "2"
 tauri-plugin-dialog = "2"
-tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 rusqlite = { version = "0.31", features = ["bundled"] }
 walkdir = "2"
 sha2 = "0.10"
+hmac = "0.12"
+hex = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
 log = "0.4"
 env_logger = "0.11"
 zstd = "0.13"
 glob = "0.3"
-reqwest = { version = "0.12", features = ["blocking"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
 url = "2"
 aes-gcm = "0.10"
 rand = "0.8"

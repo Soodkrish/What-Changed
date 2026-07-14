@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Clock, FilePlus, FileEdit, FileX, ArrowRightLeft, ChevronDown, ChevronUp, X } from "lucide-react";
 import type { ChangeRecord } from "../../lib/tauri";
-import { getFileHistory } from "../../lib/tauri";
+import { getFileHistory, parseDbTimestamp } from "../../lib/tauri";
 
 interface FileHistoryTimelineProps {
   filePath: string;
@@ -39,7 +39,7 @@ export function FileHistoryTimeline({ filePath, onClose }: FileHistoryTimelinePr
   };
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const date = parseDbTimestamp(dateStr);
     return date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -48,7 +48,7 @@ export function FileHistoryTimeline({ filePath, onClose }: FileHistoryTimelinePr
   };
 
   const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const date = parseDbTimestamp(dateStr);
     return date.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",

@@ -106,17 +106,23 @@ impl ReportExporter {
 }
 
 fn escape_csv(s: &str) -> String {
-    let needs_quoting = s.starts_with('=')
-        || s.starts_with('+')
-        || s.starts_with('-')
-        || s.starts_with('@')
-        || s.contains(',')
-        || s.contains('"')
-        || s.contains('\n')
-        || s.contains('\r');
+    // Strip Unicode bidirectional override characters (U+202A-U+202E)
+    let cleaned: String = s.chars().filter(|c| {
+        !matches!(c, '\u{202A}'..='\u{202E}')
+    }).collect();
+    let needs_quoting = cleaned.starts_with('=')
+        || cleaned.starts_with('+')
+        || cleaned.starts_with('-')
+        || cleaned.starts_with('@')
+        || cleaned.starts_with('\t')
+        || cleaned.contains(',')
+        || cleaned.contains('"')
+        || cleaned.contains('\n')
+        || cleaned.contains('\r')
+        || cleaned.contains('\t');
     if needs_quoting {
-        format!("\"{}\"", s.replace('"', "\"\""))
+        format!("\"{}\"", cleaned.replace('"', "\"\""))
     } else {
-        s.to_string()
+        cleaned
     }
 }

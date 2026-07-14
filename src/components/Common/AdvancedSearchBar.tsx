@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Search, Filter, X } from "lucide-react";
-import { advancedSearch } from "../../lib/tauri";
+import { advancedSearch, parseDbTimestamp } from "../../lib/tauri";
 import type { ChangeRecord, AdvancedSearchResult } from "../../lib/tauri";
 
 interface AdvancedSearchBarProps {
@@ -204,7 +204,7 @@ export function AdvancedSearchBar({ onSelectResult }: AdvancedSearchBarProps) {
                     <div className="text-xs text-gray-400 truncate">{record.file_path}</div>
                   </div>
                   <span className="text-xs text-gray-400 whitespace-nowrap">
-                    {new Date(record.detected_at).toLocaleDateString()}
+                    {parseDbTimestamp(record.detected_at).toLocaleDateString()}
                   </span>
                 </button>
               ))}

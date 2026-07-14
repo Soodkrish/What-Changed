@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Loader2, GitBranch } from "lucide-react";
-import { getBlameData } from "../../lib/tauri";
+import { getBlameData, parseDbTimestamp } from "../../lib/tauri";
 import type { BlameLine } from "../../lib/tauri";
 
 interface BlameViewProps {
@@ -21,7 +21,7 @@ export function BlameView({ filePath, onClose }: BlameViewProps) {
         const data = await getBlameData(filePath);
         setLines(data);
       } catch (err) {
-        setError(String(err));
+        setError("Failed to load blame data. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -109,7 +109,7 @@ export function BlameView({ filePath, onClose }: BlameViewProps) {
                     {/* Timestamp */}
                     <div className="w-24 flex-shrink-0 px-2 py-1 text-[10px] text-gray-400 border-r border-gray-100 truncate" title={line.detected_at || undefined}>
                       {line.detected_at
-                        ? new Date(line.detected_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                        ? parseDbTimestamp(line.detected_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })
                         : "—"}
                     </div>
 

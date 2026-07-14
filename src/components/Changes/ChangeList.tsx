@@ -26,13 +26,7 @@ async function openInExplorer(path: string) {
     const folder = getFolderFromPath(path);
     await invoke("open_in_explorer", { path: folder });
   } catch {
-    // Fallback: try opening the file's parent via shell
-    try {
-      const folder = getFolderFromPath(path);
-      await invoke("plugin:shell|open", { url: folder });
-    } catch {
-      // Silently fail if neither works
-    }
+    // Silently fail
   }
 }
 

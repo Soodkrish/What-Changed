@@ -9,6 +9,21 @@ pub struct Database {
 impl Database {
     pub fn new(db_path: &Path) -> Result<Self> {
         let conn = Connection::open(db_path)?;
+
+        // --- Memory optimization pragmas ---
+        conn.execute_batch(
+            "
+            PRAGMA journal_mode = WAL;
+            PRAGMA synchronous = NORMAL;
+            PRAGMA cache_size = -2000;
+            PRAGMA mmap_size = 268435456;
+            PRAGMA temp_store = MEMORY;
+            PRAGMA busy_timeout = 5000;
+            PRAGMA page_size = 4096;
+            PRAGMA auto_vacuum = INCREMENTAL;
+            ",
+        )?;
+
         let db = Database {
             conn: Mutex::new(conn),
         };
@@ -262,6 +277,20 @@ impl Database {
             ",
         )?;
 
+        // --- Startup cleanup: prune old scan batches (keep last 100) ---
+        conn.execute(
+            "DELETE FROM scan_batches WHERE id NOT IN (SELECT id FROM scan_batches ORDER BY id DESC LIMIT 100)",
+            [],
+        )?;
+        // --- Startup cleanup: prune old audit logs (keep 90 days) ---
+        conn.execute(
+            "DELETE FROM recovery_audit_log WHERE performed_at < datetime('now', '-90 days')",
+            [],
+        ).ok();
+
+        // --- Let SQLite analyze its indexes for optimal query planning ---
+        conn.execute_batch("PRAGMA optimize;")?;
+
         Ok(())
     }
 
@@ -506,6 +535,32 @@ impl Database {
         rows.collect::<Result<Vec<_>>>()
     }
 
+    pub fn get_latest_scan_batch(&self) -> Option<ScanBatch> {
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let mut stmt = conn.prepare(
+            "SELECT id, folder_count, COALESCE(folders_scanned, ''), started_at, completed_at,
+                    total_files, new_files, modified_files, deleted_files, moved_files, total_size
+             FROM scan_batches
+             ORDER BY id DESC LIMIT 1",
+        ).ok()?;
+        let mut rows = stmt.query_map([], |row| {
+            Ok(ScanBatch {
+                id: row.get(0)?,
+                folder_count: row.get(1)?,
+                folders_scanned: row.get(2)?,
+                started_at: row.get(3)?,
+                completed_at: row.get(4)?,
+                total_files: row.get(5).unwrap_or(0),
+                new_files: row.get(6).unwrap_or(0),
+                modified_files: row.get(7).unwrap_or(0),
+                deleted_files: row.get(8).unwrap_or(0),
+                moved_files: row.get(9).unwrap_or(0),
+                total_size: row.get(10).unwrap_or(0),
+            })
+        }).ok()?;
+        rows.next()?.ok()
+    }
+
     pub fn get_changes_in_batch(&self, batch_id: i64) -> Result<Vec<ChangeRecord>> {
         let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt = conn.prepare(
@@ -565,8 +620,8 @@ impl Database {
                 Some(ChangeRecord {
                     id: cid,
                     file_id: row.get(12)?,
-                    file_path: row.get(18)?,
-                    filename: row.get(19)?,
+                    file_path: row.get(17)?,
+                    filename: row.get(18)?,
                     change_type: row.get(13)?,
                     detected_at: row.get(14)?,
                     previous_path: row.get(15)?,
@@ -992,6 +1047,17 @@ pub struct FileSnapshotRecord {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
+pub struct SnapshotFileGroup {
+    pub original_path: String,
+    pub original_filename: String,
+    pub snapshot_count: i64,
+    pub total_size: i64,
+    pub latest_snapshot: String,
+    pub oldest_snapshot: String,
+    pub file_exists: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct RecycleBinEntry {
     pub id: i64,
     pub original_path: String,
@@ -1233,6 +1299,36 @@ impl Database {
                 file_hash: row.get(6)?,
                 created_at: row.get(7)?,
                 scan_batch_id: row.get(8)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>>>()
+    }
+
+    pub fn get_snapshots_grouped_by_file(&self) -> Result<Vec<SnapshotFileGroup>> {
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let mut stmt = conn.prepare(
+            "SELECT
+                original_path,
+                original_filename,
+                COUNT(*) as snapshot_count,
+                COALESCE(SUM(compressed_size), 0) as total_size,
+                MAX(created_at) as latest,
+                MIN(created_at) as oldest
+             FROM file_snapshots
+             GROUP BY original_path
+             ORDER BY MAX(created_at) DESC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            let path: String = row.get(0)?;
+            let file_exists = std::path::Path::new(&path).exists();
+            Ok(SnapshotFileGroup {
+                original_path: path,
+                original_filename: row.get(1)?,
+                snapshot_count: row.get(2)?,
+                total_size: row.get(3)?,
+                latest_snapshot: row.get(4)?,
+                oldest_snapshot: row.get(5)?,
+                file_exists,
             })
         })?;
         rows.collect::<Result<Vec<_>>>()
@@ -2052,12 +2148,15 @@ impl Database {
     }
 
     /// Get webhook endpoints that match the given change type
+    /// Uses case-insensitive comparison so "new", "NEW", "New" all match.
     pub fn get_active_webhooks_for_event(&self, change_type: &str) -> Result<Vec<WebhookEndpoint>> {
         let all = self.get_all_webhook_endpoints()?;
+        let ct_upper = change_type.to_uppercase();
         Ok(all.into_iter().filter(|wh| {
             if !wh.enabled { return false; }
-            if wh.events == "ALL" { return true; }
-            wh.events.split(',').any(|e| e.trim() == change_type || e.trim() == "ALL")
+            let events_upper = wh.events.to_uppercase();
+            if events_upper == "ALL" { return true; }
+            events_upper.split(',').any(|e| e.trim() == ct_upper || e.trim() == "ALL")
         }).collect())
     }
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Calendar } from "lucide-react";
 import type { HeatmapEntry } from "../../lib/tauri";
-import { getActivityHeatmap } from "../../lib/tauri";
+import { getActivityHeatmap, parseDbTimestamp } from "../../lib/tauri";
 
 function getHeatColor(count: number): string {
   if (count === 0) return "bg-gray-100 dark:bg-gray-800";
@@ -16,7 +16,7 @@ function getDayOfWeek(dateStr: string): number {
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-US", {
+  return parseDbTimestamp(dateStr).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
   });

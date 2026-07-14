@@ -27,10 +27,17 @@ pub struct ScanScheduler {
     running: Arc<AtomicBool>,
     handle: Mutex<Option<tokio::task::JoinHandle<()>>>,
     scanning: Arc<AtomicBool>,
+    crypto: Arc<crate::crypto::CryptoManager>,
 }
 
 impl ScanScheduler {
-    pub fn new(db: Arc<Database>, app: AppHandle, app_data_dir: PathBuf, scanning: Arc<AtomicBool>) -> Self {
+    pub fn new(
+        db: Arc<Database>,
+        app: AppHandle,
+        app_data_dir: PathBuf,
+        scanning: Arc<AtomicBool>,
+        crypto: Arc<crate::crypto::CryptoManager>,
+    ) -> Self {
         ScanScheduler {
             db,
             app,
@@ -38,6 +45,7 @@ impl ScanScheduler {
             running: Arc::new(AtomicBool::new(false)),
             handle: Mutex::new(None),
             scanning,
+            crypto,
         }
     }
 
@@ -82,6 +90,7 @@ impl ScanScheduler {
         let db = self.db.clone();
         let app = self.app.clone();
         let app_data_dir = self.app_data_dir.clone();
+        let crypto = self.crypto.clone();
 
         let handle = tokio::spawn(async move {
             // Initial delay before first scan (1 minute after startup)
@@ -105,7 +114,7 @@ impl ScanScheduler {
                 log::info!("Periodic scan triggered");
                 // RAII guard: always reset scanning flag, even on panic
                 let _guard = ScanningGuard(scanning.clone());
-                Self::run_scan(&db, &app, &app_data_dir).await;
+                Self::run_scan(&db, &app, &app_data_dir, &crypto).await;
 
                 // Re-read interval each cycle in case user changed settings
                 let new_freq = Self::get_frequency_static(&db);
@@ -158,7 +167,12 @@ impl ScanScheduler {
     }
 
     /// Run a full scan across all monitored folders.
-    async fn run_scan(db: &Arc<Database>, app: &AppHandle, app_data_dir: &std::path::Path) {
+    async fn run_scan(
+        db: &Arc<Database>,
+        app: &AppHandle,
+        app_data_dir: &std::path::Path,
+        crypto: &Arc<crate::crypto::CryptoManager>,
+    ) {
         let folders = match db.get_monitored_folders() {
             Ok(f) => f,
             Err(e) => {
@@ -305,6 +319,31 @@ impl ScanScheduler {
             stats.moved_count,
             batch_total_size,
         );
+
+        // Fire webhooks for changes in this batch
+        match db.get_changes_in_batch(batch_id) {
+            Ok(changes) => {
+                log::info!("Scheduler webhook check: batch {} has {} changes", batch_id, changes.len());
+                if !changes.is_empty() {
+                    let event_types: Vec<&str> = changes.iter().map(|c| c.change_type.as_str()).collect();
+                    log::info!("Scheduler webhook: event types = {:?}", event_types);
+                    let changes_json = serde_json::to_string(&changes).unwrap_or_default();
+                    match crate::webhook::fire_webhooks_for_changes(db, crypto, crate::get_http_client(), &changes_json, Some(app_data_dir)).await {
+                        Ok(report) => {
+                            log::info!("Scheduler webhook result: {} fired, {} failed, errors: {:?}",
+                                report.fired, report.failed, report.errors);
+                            if report.fired == 0 && report.failed == 0 {
+                                log::warn!("Scheduler webhook: no endpoints matched");
+                            }
+                        }
+                        Err(e) => log::error!("Scheduled scan webhook error: {}", e),
+                    }
+                } else {
+                    log::info!("Scheduler webhook: no changes in batch {}", batch_id);
+                }
+            }
+            Err(e) => log::error!("Scheduler webhook: failed to get changes for batch {}: {}", batch_id, e),
+        }
 
         // Complete
         let _ = app.emit("scan-progress", ScanProgressEvent {
