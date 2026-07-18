@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/gg.png" alt="What Changed?" width="600" />
+
 # 📂 What Changed?
 
 **A lightweight, privacy-first file system monitor that tracks every change across your projects.**
@@ -18,6 +20,8 @@ Never lose track of what changed, when, and why.
 ---
 
 ## Why What Changed?
+
+<img src="assets/gg.png" alt="What Changed? Interface" width="480" />
 
 Working on multiple projects? Ever wondered *"when did this file change?"* or *"what did I modify yesterday?"*
 

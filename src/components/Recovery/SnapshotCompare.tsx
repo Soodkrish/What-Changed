@@ -97,7 +97,7 @@ export function SnapshotCompare({ onClose }: SnapshotCompareProps) {
               <GitCompareArrows className="w-4 h-4 text-indigo-600" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-gray-900">Compare Snapshots</h3>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Compare Snapshots</h3>
               <p className="text-sm text-gray-500">Pick any two snapshots to see a full diff</p>
             </div>
           </div>

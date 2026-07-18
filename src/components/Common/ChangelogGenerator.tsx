@@ -75,7 +75,7 @@ export function ChangelogGenerator() {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <FileText className="w-5 h-5 text-green-500" />
-          <h3 className="text-lg font-semibold text-gray-900">Changelog Generator</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Changelog Generator</h3>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -128,7 +128,7 @@ export function ChangelogGenerator() {
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-gray-900">{entry.date}</span>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">{entry.date}</span>
                     <span className="text-xs text-gray-400">Scan #{entry.batch_id}</span>
                   </div>
                   <div className="flex items-center gap-3 mt-1">

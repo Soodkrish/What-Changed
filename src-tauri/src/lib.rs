@@ -225,6 +225,18 @@ fn scan_all(
         });
     }
 
+    // Auto-run duplicate detection after scan
+    {
+        let detector = DuplicateDetector::new(state.db.clone());
+        match detector.detect() {
+            Ok(result) if result.groups_found > 0 => {
+                log::info!("Duplicate detection: {} groups, {} wasted", result.groups_found, result.wasted_bytes);
+            }
+            Ok(_) => {}
+            Err(e) => log::error!("Duplicate detection failed: {}", e),
+        }
+    }
+
     // Emit complete
     let _ = app.emit("scan-progress", ScanProgressEvent {
         current: total,
@@ -370,6 +382,7 @@ const READABLE_SETTINGS: &[&str] = &[
     "notifications_enabled", "daily_summary_enabled", "start_minimized",
     "cloud_detection_enabled", "autostart_enabled", "dark_mode",
     "webhook_latest_report",
+    "daily_summary_webhook_enabled", "daily_summary_time",
 ];
 
 #[tauri::command]
@@ -395,6 +408,7 @@ fn set_setting(
         "file_snapshots_enabled", "snapshot_max_size", "snapshot_retention_days", "snapshot_extensions",
         "notifications_enabled", "daily_summary_enabled", "start_minimized",
         "cloud_detection_enabled", "autostart_enabled", "dark_mode",
+        "daily_summary_webhook_enabled", "daily_summary_time",
     ];
     if !ALLOWED_SETTINGS.contains(&key.as_str()) {
         return Err(format!("Unknown setting: {}", key));
@@ -988,14 +1002,32 @@ async fn test_webhook_endpoint(state: tauri::State<'_, AppState>, id: i64) -> Re
         None => None,
     };
 
-    // Build test payload — include "content" for Discord compatibility
-    let payload = serde_json::json!({
-        "content": "🧪 What Changed? webhook test ping",
-        "username": "What Changed?",
-        "event": "test",
-        "message": "What Changed? webhook test ping",
-        "timestamp": chrono::Local::now().to_rfc3339(),
-    });
+    // Build platform-specific test payload
+    let url_lower = url.to_lowercase();
+    let is_telegram = url_lower.contains("api.telegram.org");
+    let payload = if is_telegram {
+        // Extract chat_id from URL query params
+        let chat_id = url::Url::parse(&url)
+            .ok()
+            .and_then(|u| u.query_pairs().find(|(k, _)| k == "chat_id").map(|(_, v)| v.to_string()))
+            .unwrap_or_default();
+        let mut p = serde_json::json!({
+            "text": "🧪 What Changed? webhook test ping",
+            "parse_mode": "Markdown",
+        });
+        if !chat_id.is_empty() {
+            p["chat_id"] = serde_json::json!(chat_id);
+        }
+        p
+    } else {
+        serde_json::json!({
+            "content": "🧪 What Changed? webhook test ping",
+            "username": "What Changed?",
+            "event": "test",
+            "message": "What Changed? webhook test ping",
+            "timestamp": chrono::Local::now().to_rfc3339(),
+        })
+    };
 
     let body = payload.to_string();
     let mut req = get_http_client().post(&url)

@@ -129,7 +129,7 @@ export function Dashboard() {
 
         {/* Storage Growth */}
         <div className="bg-white rounded-xl border border-gray-200 p-6 h-fit">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Storage Growth</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Storage Growth</h3>
           <StorageChart />
         </div>
       </div>

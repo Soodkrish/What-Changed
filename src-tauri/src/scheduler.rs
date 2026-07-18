@@ -301,6 +301,18 @@ impl ScanScheduler {
         let storage = StorageAnalyzer::new(db.clone());
         let _ = storage.snapshot_all();
 
+        // Auto-run duplicate detection after periodic scan
+        {
+            let detector = crate::duplicates::DuplicateDetector::new(db.clone());
+            match detector.detect() {
+                Ok(result) if result.groups_found > 0 => {
+                    log::info!("Duplicate detection: {} groups, {} wasted", result.groups_found, result.wasted_bytes);
+                }
+                Ok(_) => {}
+                Err(e) => log::error!("Duplicate detection failed: {}", e),
+            }
+        }
+
         // Cleanup old audit logs (90-day retention) — runs once per scan cycle
         match db.cleanup_old_audit_logs(90) {
             Ok(n) if n > 0 => log::info!("Cleaned up {} old audit log entries", n),
@@ -372,6 +384,86 @@ impl ScanScheduler {
             }
         }
 
+        // Check if it's time to send the daily summary webhook
+        Self::maybe_send_daily_summary_webhook(db, crypto, app_data_dir).await;
+
         log::info!("Periodic scan completed (batch {})", batch_id);
+    }
+
+    /// Check if the current time matches the user-configured daily summary time.
+    /// If so, fire the summary to all enabled webhook endpoints.
+    /// Tracks last-sent date to avoid duplicate sends on the same day.
+    async fn maybe_send_daily_summary_webhook(
+        db: &Arc<Database>,
+        crypto: &Arc<crate::crypto::CryptoManager>,
+        app_data_dir: &std::path::Path,
+    ) {
+        let enabled = db.get_setting("daily_summary_webhook_enabled")
+            .ok().flatten()
+            .map(|v| v == "true")
+            .unwrap_or(false);
+        if !enabled {
+            return;
+        }
+
+        let target_time = db.get_setting("daily_summary_time")
+            .ok().flatten()
+            .unwrap_or_else(|| "18:00".to_string());
+
+        // Parse target time (HH:MM format)
+        let parts: Vec<&str> = target_time.split(':').collect();
+        if parts.len() != 2 {
+            log::warn!("Invalid daily_summary_time format: {}", target_time);
+            return;
+        }
+        let target_hour: u32 = match parts[0].parse() {
+            Ok(h) => h,
+            Err(_) => { log::warn!("Invalid hour in daily_summary_time: {}", target_time); return; }
+        };
+        let target_minute: u32 = match parts[1].parse() {
+            Ok(m) => m,
+            Err(_) => { log::warn!("Invalid minute in daily_summary_time: {}", target_time); return; }
+        };
+
+        let now = chrono::Local::now();
+        use chrono::Timelike;
+        let current_hour = now.hour();
+        let current_minute = now.minute();
+        let today_date = now.format("%Y-%m-%d").to_string();
+
+        // Check if we're within the target minute window (within 1 scan cycle)
+        let frequency_minutes = db.get_setting("scan_frequency")
+            .ok().flatten()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(15);
+
+        let target_total_minutes = target_hour * 60 + target_minute;
+        let current_total_minutes = current_hour * 60 + current_minute;
+
+        // Fire if we're within one scan cycle of the target time
+        if current_total_minutes < target_total_minutes
+            || current_total_minutes > target_total_minutes + frequency_minutes as u32 {
+            return;
+        }
+
+        // Check if already sent today
+        let last_sent = db.get_setting("daily_summary_last_sent_date")
+            .ok().flatten()
+            .unwrap_or_default();
+        if last_sent == today_date {
+            log::info!("Daily summary already sent today ({})", today_date);
+            return;
+        }
+
+        log::info!("Daily summary webhook triggered at {} (target: {})", now.format("%H:%M"), target_time);
+
+        match crate::webhook::fire_daily_summary_webhook(db, crypto, crate::get_http_client(), Some(app_data_dir)).await {
+            Ok(report) => {
+                log::info!("Daily summary webhook result: {} fired, {} failed", report.fired, report.failed);
+                // Record that we sent it today
+                let _ = db.set_setting("daily_summary_last_sent_date", &today_date);
+            }
+            Err(e) => log::error!("Daily summary webhook error: {}", e),
+        }
     }
 }

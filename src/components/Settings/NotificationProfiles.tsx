@@ -132,7 +132,7 @@ export function NotificationProfiles() {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <Bell className="w-5 h-5 text-orange-500" />
-          <h3 className="text-lg font-semibold text-gray-900">Notification Profiles</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Notification Profiles</h3>
         </div>
         <button
           onClick={() => setShowCreate(!showCreate)}

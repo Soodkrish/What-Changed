@@ -123,7 +123,7 @@ export function FileDiffViewer({ snapshotId, filePath, snapshotDate, onClose }: 
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div>
-            <h3 className="text-lg font-bold text-gray-900">File Diff</h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">File Diff</h3>
             <p className="text-sm text-gray-500">
               Snapshot from {new Date(snapshotDate).toLocaleString()}
             </p>

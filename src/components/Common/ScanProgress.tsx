@@ -67,7 +67,7 @@ export function ScanProgress({ onComplete }: ScanProgressProps) {
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900">
+          <p className="text-sm font-medium text-gray-900 dark:text-white">
             {phaseLabels[progress.phase] || progress.phase}
           </p>
           {progress.directory && (

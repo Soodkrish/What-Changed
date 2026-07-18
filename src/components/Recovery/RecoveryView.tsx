@@ -45,7 +45,7 @@ export function RecoveryView() {
     <div className="space-y-6 p-6 max-w-6xl mx-auto">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Recovery</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Recovery</h1>
         <p className="text-sm text-gray-500 mt-1">
           Safety net for your files — restore deleted items, roll back changes, and track cloud protection
         </p>

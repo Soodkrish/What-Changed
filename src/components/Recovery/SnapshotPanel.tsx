@@ -170,7 +170,7 @@ export function SnapshotPanel({ snapshotCount, totalSize }: SnapshotPanelProps) 
             <Camera className="w-5 h-5 text-blue-600" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-gray-900">File Snapshots</h3>
+            <h3 className="text-base font-bold text-gray-900 dark:text-white">File Snapshots</h3>
             <p className="text-sm text-gray-500">
               {snapshotCount} versions ({formatBytes(totalSize)})
             </p>

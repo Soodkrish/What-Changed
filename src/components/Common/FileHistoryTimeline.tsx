@@ -76,7 +76,7 @@ export function FileHistoryTimeline({ filePath, onClose }: FileHistoryTimelinePr
               <Clock className="w-4 h-4 text-brand-600" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-gray-900">File History</h3>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">File History</h3>
               <p className="text-xs text-gray-500 truncate max-w-xs" title={filePath}>
                 {filePath}
               </p>

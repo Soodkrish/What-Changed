@@ -30,6 +30,12 @@ export function Settings() {
   const [dailySummary, setDailySummary] = useState(
     settings.daily_summary_enabled !== "false"
   );
+  const [dailySummaryWebhook, setDailySummaryWebhook] = useState(
+    settings.daily_summary_webhook_enabled === "true"
+  );
+  const [dailySummaryTime, setDailySummaryTime] = useState(
+    settings.daily_summary_time || "18:00"
+  );
   const [autoStart, setAutoStart] = useState(
     settings.autostart_enabled === "true"
   );
@@ -53,6 +59,8 @@ export function Settings() {
     if (settings.start_minimized !== undefined) setStartMinimized(settings.start_minimized === "true");
     if (settings.notifications_enabled !== undefined) setNotificationsEnabled(settings.notifications_enabled !== "false");
     if (settings.daily_summary_enabled !== undefined) setDailySummary(settings.daily_summary_enabled !== "false");
+    if (settings.daily_summary_webhook_enabled !== undefined) setDailySummaryWebhook(settings.daily_summary_webhook_enabled === "true");
+    if (settings.daily_summary_time !== undefined) setDailySummaryTime(settings.daily_summary_time);
     if (settings.autostart_enabled !== undefined) setAutoStart(settings.autostart_enabled === "true");
     if (settings.file_snapshots_enabled !== undefined) setSnapshotsEnabled(settings.file_snapshots_enabled === "true");
   }, [settings]);
@@ -92,6 +100,8 @@ export function Settings() {
         setSetting("start_minimized", String(startMinimized)),
         setSetting("notifications_enabled", String(notificationsEnabled)),
         setSetting("daily_summary_enabled", String(dailySummary)),
+        setSetting("daily_summary_webhook_enabled", String(dailySummaryWebhook)),
+        setSetting("daily_summary_time", dailySummaryTime),
         setSetting("autostart_enabled", String(autoStart)),
         setSetting("file_snapshots_enabled", String(snapshotsEnabled)),
       ]);
@@ -126,6 +136,8 @@ export function Settings() {
     setStartMinimized(false);
     setNotificationsEnabled(true);
     setDailySummary(true);
+    setDailySummaryWebhook(false);
+    setDailySummaryTime("18:00");
     setAutoStart(false);
     showToast("success", "Settings reset to defaults");
   };
@@ -146,7 +158,7 @@ export function Settings() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h2>
         <p className="text-sm text-gray-500 mt-1">
           Configure what and how to monitor.
         </p>
@@ -155,7 +167,7 @@ export function Settings() {
       {/* Monitored Folders */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Monitored Folders</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Monitored Folders</h3>
           <button
             onClick={handleAddFolder}
             className="flex items-center gap-2 px-3 py-1.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
@@ -169,7 +181,7 @@ export function Settings() {
 
       {/* Scan Frequency */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Scan Frequency</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Scan Frequency</h3>
         <div className="space-y-2">
           {[
             { value: "5", label: "Every 5 minutes" },
@@ -197,7 +209,7 @@ export function Settings() {
 
       {/* Startup & Notifications */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Startup & Notifications</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Startup & Notifications</h3>
         <div className="space-y-4">
           <label className="flex items-center gap-3 cursor-pointer">
             <input
@@ -238,6 +250,33 @@ export function Settings() {
             </div>
           </label>
 
+          <div className="border-t border-gray-100 pt-4 mt-2">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={dailySummaryWebhook}
+                onChange={(e) => setDailySummaryWebhook(e.target.checked)}
+                className="w-4 h-4 text-brand-600 rounded focus:ring-brand-500"
+              />
+              <div>
+                <p className="text-sm font-medium text-gray-700">Send daily summary to webhooks</p>
+                <p className="text-xs text-gray-500">Push a daily report to Discord / Telegram at a scheduled time</p>
+              </div>
+            </label>
+            {dailySummaryWebhook && (
+              <div className="mt-3 ml-7 flex items-center gap-3">
+                <label className="text-sm text-gray-600">Send at:</label>
+                <input
+                  type="time"
+                  value={dailySummaryTime}
+                  onChange={(e) => setDailySummaryTime(e.target.value)}
+                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                />
+                <span className="text-xs text-gray-400">once per day</span>
+              </div>
+            )}
+          </div>
+
           <div className="border-t border-gray-100 pt-4 mt-4">
             <label className="flex items-center gap-3 cursor-pointer">
               <input
@@ -262,7 +301,7 @@ export function Settings() {
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="flex items-center gap-3 mb-4">
           <Camera className="w-5 h-5 text-blue-500" />
-          <h3 className="text-lg font-semibold text-gray-900">Recovery & Snapshots</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recovery & Snapshots</h3>
         </div>
         <div className="space-y-4">
           <label className="flex items-center gap-3 cursor-pointer">

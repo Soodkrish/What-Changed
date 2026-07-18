@@ -33,7 +33,7 @@ export function DuplicatesView() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Duplicates</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Duplicates</h2>
           <p className="text-sm text-gray-500 mt-1">
             {groups.length} duplicate groups found
           </p>
