@@ -10,6 +10,26 @@ node_modules/
 # ===========================
 dist/
 build/
+out/
+
+# ===========================
+# Tauri / Rust
+# ===========================
+src-tauri/target/
+src-tauri/bundle/
+src-tauri/wix/
+src-tauri/nsis/
+*.pdb
+*.d
+*.rlib
+*.rmeta
+cargo-test*
+perf.data*
+flamegraph.svg
+
+# ===========================
+# Tauri Bundler Artifacts
+# ===========================
 *.exe
 *.dll
 *.so
@@ -21,28 +41,33 @@ build/
 *.deb
 *.rpm
 *.AppImage
+*.AppImage.sig
+*.blockmap
 
 # ===========================
-# Tauri / Rust
-# ===========================
-src-tauri/target/
-src-tauri/Cargo.lock
-*.pdb
-
-# ===========================
-# Frontend
+# Frontend / Vite
 # ===========================
 *.tsbuildinfo
 .vite/
+*.local
 
 # ===========================
 # Environment & Secrets
 # ===========================
+.playwright-mcp/
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+*secret*
+*credentials*
 
 # ===========================
 # IDE & Editor
@@ -51,12 +76,18 @@ src-tauri/Cargo.lock
 .vscode/tasks.json
 .vscode/launch.json
 .vscode/extensions.json
+.vscode/*.code-workspace
 .idea/
+*.iml
+*.iws
 *.swp
 *.swo
 *~
 *.sublime-project
 *.sublime-workspace
+*.komodoproject
+.komodotools/
+.vs/
 
 # ===========================
 # OS Generated
@@ -68,9 +99,11 @@ src-tauri/Cargo.lock
 .Trashes
 Thumbs.db
 ehthumbs.db
+ehthumbs_vista.db
 Desktop.ini
 $RECYCLE.BIN/
 *.lnk
+Icon?
 
 # ===========================
 # Debug & Logs
@@ -80,6 +113,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 *.log
+lldb.log
 
 # ===========================
 # Testing & Coverage
@@ -87,23 +121,31 @@ pnpm-debug.log*
 coverage/
 .nyc_output/
 *.lcov
+*.cover
 
 # ===========================
-# SQLite (local dev only)
+# SQLite (local dev / user data)
 # ===========================
 *.db
 *.db-wal
 *.db-shm
+*.db-journal
 
 # ===========================
-# Tauri User Data (snapshots)
+# Tauri User Data
 # ===========================
 src-tauri/snapshots/
+src-tauri/app_data/
+src-tauri/data/
 
 # ===========================
-# Misc
+# Cache & Temp
 # ===========================
 .cache/
+.cache*/
 *.bak
 *.tmp
 *.temp
+*.orig
+*.rej
+__pycache__/
