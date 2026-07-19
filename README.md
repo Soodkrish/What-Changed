@@ -11,7 +11,7 @@ Never lose track of what changed, when, and why.
 [![Rust](https://img.shields.io/badge/Rust-2021-brightgreen?style=flat-square)](https://rust-lang.org)
 [![Platform](https://img.shields.io/badge/Platform-Windows-blue?style=flat-square)](#installation)
 
-[Download](#Installation) · [Features](#Features) · [Screenshots](#Screenshots) · [Contributing](#Contributing)
+[Download](#download) · [Features](#-features) · [Screenshots](#-screenshots) · [Contributing](#-contributing)
 
 </div>
 
