@@ -9,10 +9,9 @@ Never lose track of what changed, when, and why.
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![Tauri](https://img.shields.io/badge/Tauri-2.0-orange?style=flat-square)](https://tauri.app)
 [![Rust](https://img.shields.io/badge/Rust-2021-brightgreen?style=flat-square)](https://rust-lang.org)
-[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square)](https://react.dev)
 [![Platform](https://img.shields.io/badge/Platform-Windows-blue?style=flat-square)](#installation)
 
-[Download](#installation) · [Features](#features) · [Screenshots](#screenshots) · [Contributing](#contributing)
+[Download](#Installation) · [Features](#Features) · [Screenshots](#Screenshots) · [Contributing](#Contributing)
 
 </div>
 
