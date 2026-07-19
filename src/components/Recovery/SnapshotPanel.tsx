@@ -162,7 +162,7 @@ export function SnapshotPanel({ snapshotCount, totalSize }: SnapshotPanelProps) 
   );
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between p-5 border-b border-gray-100">
         <div className="flex items-center gap-3">

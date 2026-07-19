@@ -25,7 +25,7 @@ export function ShortcutsHelp() {
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-xl p-6 w-80">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl p-6 w-80">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold text-gray-900 dark:text-white">Keyboard Shortcuts</h3>
               <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600">

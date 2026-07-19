@@ -165,7 +165,7 @@ export function Settings() {
       </div>
 
       {/* Monitored Folders */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Monitored Folders</h3>
           <button
@@ -180,7 +180,7 @@ export function Settings() {
       </div>
 
       {/* Scan Frequency */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Scan Frequency</h3>
         <div className="space-y-2">
           {[
@@ -191,7 +191,7 @@ export function Settings() {
           ].map((option) => (
             <label
               key={option.value}
-              className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer"
+              className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
             >
               <input
                 type="radio"
@@ -201,14 +201,14 @@ export function Settings() {
                 onChange={(e) => setScanFrequency(e.target.value)}
                 className="w-4 h-4 text-brand-600 focus:ring-brand-500"
               />
-              <span className="text-sm text-gray-700">{option.label}</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">{option.label}</span>
             </label>
           ))}
         </div>
       </div>
 
       {/* Startup & Notifications */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Startup & Notifications</h3>
         <div className="space-y-4">
           <label className="flex items-center gap-3 cursor-pointer">
@@ -219,7 +219,7 @@ export function Settings() {
               className="w-4 h-4 text-brand-600 rounded focus:ring-brand-500"
             />
             <div>
-              <p className="text-sm font-medium text-gray-700">Start minimized to tray</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Start minimized to tray</p>
               <p className="text-xs text-gray-500">App starts in system tray on boot</p>
             </div>
           </label>
@@ -232,7 +232,7 @@ export function Settings() {
               className="w-4 h-4 text-brand-600 rounded focus:ring-brand-500"
             />
             <div>
-              <p className="text-sm font-medium text-gray-700">Enable notifications</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Enable notifications</p>
               <p className="text-xs text-gray-500">Show desktop notifications for changes</p>
             </div>
           </label>
@@ -245,12 +245,12 @@ export function Settings() {
               className="w-4 h-4 text-brand-600 rounded focus:ring-brand-500"
             />
             <div>
-              <p className="text-sm font-medium text-gray-700">Daily summary</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Daily summary</p>
               <p className="text-xs text-gray-500">Get a daily digest of all changes</p>
             </div>
           </label>
 
-          <div className="border-t border-gray-100 pt-4 mt-2">
+          <div className="border-t border-gray-100 dark:border-gray-700 pt-4 mt-2">
             <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -259,25 +259,25 @@ export function Settings() {
                 className="w-4 h-4 text-brand-600 rounded focus:ring-brand-500"
               />
               <div>
-                <p className="text-sm font-medium text-gray-700">Send daily summary to webhooks</p>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Send daily summary to webhooks</p>
                 <p className="text-xs text-gray-500">Push a daily report to Discord / Telegram at a scheduled time</p>
               </div>
             </label>
             {dailySummaryWebhook && (
               <div className="mt-3 ml-7 flex items-center gap-3">
-                <label className="text-sm text-gray-600">Send at:</label>
+                <label className="text-sm text-gray-600 dark:text-gray-400">Send at:</label>
                 <input
                   type="time"
                   value={dailySummaryTime}
                   onChange={(e) => setDailySummaryTime(e.target.value)}
-                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                  className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white dark:bg-gray-900 dark:text-white"
                 />
                 <span className="text-xs text-gray-400">once per day</span>
               </div>
             )}
           </div>
 
-          <div className="border-t border-gray-100 pt-4 mt-4">
+          <div className="border-t border-gray-100 dark:border-gray-700 pt-4 mt-4">
             <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -288,7 +288,7 @@ export function Settings() {
               <div className="flex items-center gap-2">
                 <Power className="w-4 h-4 text-gray-400" />
                 <div>
-                  <p className="text-sm font-medium text-gray-700">Start on boot</p>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Start on boot</p>
                   <p className="text-xs text-gray-500">Launch What Changed? when you log in</p>
                 </div>
               </div>
@@ -298,7 +298,7 @@ export function Settings() {
       </div>
 
       {/* Recovery & Snapshots */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center gap-3 mb-4">
           <Camera className="w-5 h-5 text-blue-500" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recovery & Snapshots</h3>
@@ -312,7 +312,7 @@ export function Settings() {
               className="w-4 h-4 text-brand-600 rounded focus:ring-brand-500"
             />
             <div>
-              <p className="text-sm font-medium text-gray-700">Enable file snapshots</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Enable file snapshots</p>
               <p className="text-xs text-gray-500">
                 Automatically back up text and code files before they change (compressed with zstd, up to 100KB per file)
               </p>

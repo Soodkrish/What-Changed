@@ -57,7 +57,7 @@ export function ScanProgress({ onComplete }: ScanProgressProps) {
   };
 
   return (
-    <div className="fixed bottom-6 left-6 right-6 md:left-auto md:right-6 md:w-96 bg-white rounded-xl shadow-lg border border-gray-200 p-4 z-50">
+    <div className="fixed bottom-6 left-6 right-6 md:left-auto md:right-6 md:w-96 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 z-50">
       <div className="flex items-center gap-3 mb-3">
         {!isComplete ? (
           <Loader2 className="w-5 h-5 text-brand-500 animate-spin" />

@@ -52,13 +52,13 @@ export function RecoveryCards({ stats }: RecoveryCardsProps) {
       {cards.map((card) => (
         <div
           key={card.label}
-          className={`bg-white rounded-xl border ${card.border} p-5 flex items-center gap-4`}
+          className={`bg-white dark:bg-gray-800 rounded-xl border ${card.border} p-5 flex items-center gap-4`}
         >
           <div className={`${card.bg} p-3 rounded-lg`}>
             <card.icon className={`w-6 h-6 ${card.color}`} />
           </div>
           <div>
-            <p className="text-2xl font-bold text-gray-900">{card.value}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{card.value}</p>
             {card.label === "Total Protected" && (
               <p className="text-xs text-gray-400 mt-0.5">
                 {formatBytes(stats.total_snapshot_size)} stored

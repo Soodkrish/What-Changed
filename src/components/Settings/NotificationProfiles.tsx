@@ -121,14 +121,14 @@ export function NotificationProfiles() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <div className="animate-pulse h-20 bg-gray-100 rounded" />
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <Bell className="w-5 h-5 text-orange-500" />
@@ -180,7 +180,7 @@ export function NotificationProfiles() {
           {profiles.map((profile) => (
             <div key={profile.id} className="border border-gray-100 rounded-lg overflow-hidden">
               {/* Profile header */}
-              <div className="flex items-center gap-3 px-4 py-3 bg-white">
+              <div className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-900">
                 <button
                   onClick={() => handleToggleEnabled(profile.id, profile.enabled)}
                   className={`p-1 rounded ${profile.enabled ? "text-green-500" : "text-gray-300"}`}
@@ -190,7 +190,7 @@ export function NotificationProfiles() {
                 </button>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-gray-900">{profile.name}</span>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">{profile.name}</span>
                     {!profile.enabled && (
                       <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">disabled</span>
                     )}

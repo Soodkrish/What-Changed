@@ -51,7 +51,7 @@ export function DuplicatesView() {
       </div>
 
       {groups.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
           <Copy className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500">No duplicates found.</p>
           <p className="text-sm text-gray-400 mt-1">

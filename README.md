@@ -8,10 +8,11 @@
 
 Never lose track of what changed, when, and why.
 
-[![GitHub Release](https://img.shields.io/github/v/release/OWNER/what-changed?style=flat-square&color=4f46e5)](https://github.com/OWNER/what-changed/releases)
-[![License](https://img.shields.io/github/license/OWNER/what-changed?style=flat-square&color=10b981)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/OWNER/what-changed?style=flat-square&color=f59e0b)](https://github.com/OWNER/what-changed/stargazers)
-[![Issues](https://img.shields.io/github/issues/OWNER/what-changed?style=flat-square&color=ef4444)](https://github.com/OWNER/what-changed/issues)
+[![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+[![Tauri](https://img.shields.io/badge/Tauri-2.0-orange?style=flat-square)](https://tauri.app)
+[![Rust](https://img.shields.io/badge/Rust-2021-brightgreen?style=flat-square)](https://rust-lang.org)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square)](https://react.dev)
+[![Platform](https://img.shields.io/badge/Platform-Windows-blue?style=flat-square)](#installation)
 
 [Download](#installation) · [Features](#features) · [Screenshots](#screenshots) · [Contributing](#contributing)
 
@@ -19,9 +20,11 @@ Never lose track of what changed, when, and why.
 
 ---
 
-## Why What Changed?
-
+<div align="center">
 <img src="assets/gg.png" alt="What Changed? Interface" width="480" />
+</div>
+
+## Why What Changed?
 
 Working on multiple projects? Ever wondered *"when did this file change?"* or *"what did I modify yesterday?"*
 
@@ -79,47 +82,52 @@ Built with [Tauri 2.0](https://tauri.app/) for a tiny footprint (~30MB RAM) and 
 
 <div align="center">
 
-| Dashboard | File Snapshots | Duplicates | Webhooks |
-|-----------|---------------|------------|----------|
-| ![Dashboard](screenshots/dashboard.png) | ![Snapshots](screenshots/snapshots.png) | ![Duplicates](screenshots/duplicates.png) | ![Webhooks](screenshots/webhooks.png) |
+| File Snapshots |
+|-----------|
+| ![Snapshots](assets/gg2.png) |
 
 </div>
-
-> **Note:** Screenshots coming soon! Install the app to see it in action.
 
 ---
 
 ## 🚀 Installation
 
-### Windows
-1. Download the latest `.msi` or `.exe` installer from [Releases](https://github.com/OWNER/what-changed/releases)
+### Download
+
+**Windows (recommended):**
+
+Download the latest installer from [**GitHub Releases →**](https://github.com/Soodkrish03/What-Changed/releases/latest)
+
+| Installer | Description |
+|-----------|-------------|
+| [`What-Changed_1.0.0_x64-setup.exe`](https://github.com/Soodkrish03/What-Changed/releases/latest) | **Recommended** — Standard Windows installer (NSIS) |
+| [`What-Changed_1.0.0_x64_en-US.msi`](https://github.com/Soodkrish03/What-Changed/releases/latest) | MSI installer — Supports silent install & Group Policy deployment |
+
+> **Quick download:** Grab the `.exe` for a familiar Next→Next→Install wizard.
+
+### Windows Setup
+1. Download the `.exe` or `.msi` from the link above
 2. Run the installer and follow the prompts
-3. Launch "What Changed?" from your Start Menu
+3. Launch **What Changed?** from your Start Menu
 
-### macOS
-1. Download the latest `.dmg` from [Releases](https://github.com/OWNER/what-changed/releases)
-2. Open the `.dmg` and drag to Applications
-3. Launch from Applications or Spotlight
+### macOS & Linux
 
-### Linux
-1. Download the `.deb` or `.AppImage` from [Releases](https://github.com/OWNER/what-changed/releases)
-2. **Debian/Ubuntu:** `sudo dpkg -i what-changed_*.deb`
-3. **AppImage:** `chmod +x what-changed_*.AppImage && ./what-changed_*.AppImage`
+> ⚠️ **Not yet tested.** Tauri supports macOS and Linux, but this app has only been developed and tested on Windows. Some features (like Recycle Bin recovery) are Windows-only. Builds for macOS and Linux will be available once tested — you can try building from source below.
 
 ---
 
 ## 🛠️ Building from Source
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/) 18+ 
+- [Node.js](https://nodejs.org/) 18+
 - [Rust](https://rustup.rs/) (latest stable)
 - [Tauri CLI](https://tauri.app/): `cargo install tauri-cli`
 
 ### Setup
 ```bash
 # Clone the repository
-git clone https://github.com/OWNER/what-changed.git
-cd what-changed
+git clone https://github.com/Soodkrish03/What-Changed.git
+cd What-Changed
 
 # Install frontend dependencies
 npm install
@@ -130,6 +138,8 @@ npm run tauri dev
 # Build for production
 npm run tauri build
 ```
+
+The installers will be generated in `src-tauri/target/release/bundle/`.
 
 ---
 
@@ -172,7 +182,7 @@ npm run tauri build
 ## 📁 Project Structure
 
 ```
-what-changed/
+What-Changed/
 ├── src/                        # React frontend
 │   ├── components/
 │   │   ├── Common/             # Shared UI (Layout, Sidebar, UpdateBanner)
@@ -219,20 +229,11 @@ Contributions are welcome! Here's how:
 
 ## 🐛 Bug Reports
 
-Found a bug? Please [open an issue](https://github.com/OWNER/what-changed/issues/new?template=bug_report.md) with:
+Found a bug? Please [open an issue](https://github.com/Soodkrish03/What-Changed/issues/new) with:
 - Steps to reproduce
 - Expected behavior
 - Actual behavior
 - App version (`Settings → About`)
-
----
-
-## 💡 Feature Requests
-
-Have an idea? [Open a feature request](https://github.com/OWNER/what-changed/issues/new?template=feature_request.md) and describe:
-- What problem it solves
-- How you'd use it
-- Any mockups or examples
 
 ---
 

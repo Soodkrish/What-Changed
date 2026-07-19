@@ -33,7 +33,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center p-8 bg-white rounded-xl border border-gray-200 m-4">
+        <div className="flex flex-col items-center justify-center p-8 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 m-4">
           <AlertTriangle className="w-12 h-12 text-amber-500 mb-4" />
           <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
             {this.props.fallbackTitle || "Something went wrong"}

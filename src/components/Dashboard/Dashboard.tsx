@@ -107,7 +107,7 @@ export function Dashboard() {
         {/* Folder cards — one per monitored folder */}
         <div className="space-y-4">
           {folderGroups.length === 0 ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-500">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center text-gray-500">
               <FolderOpen className="w-8 h-8 mx-auto text-gray-300 mb-2" />
               <p>No folders scanned yet.</p>
               <p className="text-sm mt-1">Add a folder in Settings, then scan.</p>
@@ -128,7 +128,7 @@ export function Dashboard() {
         </div>
 
         {/* Storage Growth */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 h-fit">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 h-fit">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Storage Growth</h3>
           <StorageChart />
         </div>

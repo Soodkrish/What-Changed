@@ -65,7 +65,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const Icon = step.icon;
 
   return (
-    <div className="fixed inset-0 bg-white z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-white dark:bg-gray-900 z-50 flex items-center justify-center">
       <div className="max-w-lg w-full mx-4">
         {/* Progress dots */}
         <div className="flex justify-center gap-2 mb-8">

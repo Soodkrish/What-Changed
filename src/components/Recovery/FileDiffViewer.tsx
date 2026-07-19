@@ -118,7 +118,7 @@ export function FileDiffViewer({ snapshotId, filePath, snapshotDate, onClose }: 
         role="dialog"
         aria-modal="true"
         aria-label={`Diff viewer for ${filePath}`}
-        className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[80vh] flex flex-col"
+        className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[80vh] flex flex-col"
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">

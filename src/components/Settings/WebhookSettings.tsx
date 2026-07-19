@@ -139,14 +139,14 @@ export function WebhookSettings() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <div className="animate-pulse h-20 bg-gray-100 rounded" />
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <Webhook className="w-5 h-5 text-violet-500" />
@@ -201,7 +201,7 @@ export function WebhookSettings() {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Name (e.g., Discord Alerts)"
-              className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+              className="px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white dark:bg-gray-900 dark:text-white"
               autoFocus
             />
             <input
@@ -209,7 +209,7 @@ export function WebhookSettings() {
               value={newUrl}
               onChange={(e) => setNewUrl(e.target.value)}
               placeholder="https://discord.com/api/webhooks/..."
-              className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+              className="px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white dark:bg-gray-900 dark:text-white"
             />
           </div>
           {/* Platform detection hint */}
@@ -226,7 +226,7 @@ export function WebhookSettings() {
                 value={newEvents}
                 onChange={(e) => setNewEvents(e.target.value)}
                 placeholder="ALL"
-                className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white w-full"
+                className="px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white dark:bg-gray-900 dark:text-white w-full"
               />
               <p className="text-[10px] text-gray-400 mt-1">ALL, NEW, MODIFIED, DELETED, MOVED</p>
             </div>
@@ -236,7 +236,7 @@ export function WebhookSettings() {
                 value={newSecret}
                 onChange={(e) => setNewSecret(e.target.value)}
                 placeholder="Secret (optional)"
-                className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white w-full"
+                className="px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white dark:bg-gray-900 dark:text-white w-full"
               />
               <p className="text-[10px] text-gray-400 mt-1">HMAC signature in X-Webhook-Signature</p>
             </div>
@@ -290,7 +290,7 @@ export function WebhookSettings() {
                   </button>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-gray-900">{ep.name}</span>
+                      <span className="text-sm font-semibold text-gray-900 dark:text-white">{ep.name}</span>
                       {platform && (
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${platform.color}`}>
                           {platform.name}
