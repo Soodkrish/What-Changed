@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="assets/gg.png" alt="What Changed?" width="600" />
-
 # 📂 What Changed?
 
 **A lightweight, privacy-first file system monitor that tracks every change across your projects.**
@@ -21,7 +19,7 @@ Never lose track of what changed, when, and why.
 ---
 
 <div align="center">
-<img src="assets/gg.png" alt="What Changed? Interface" width="480" />
+<img src="assets/gg.png" alt="What Changed? Interface" width="550" />
 </div>
 
 ## Why What Changed?
@@ -100,8 +98,8 @@ Download the latest installer from [**GitHub Releases →**](https://github.com/
 
 | Installer | Description |
 |-----------|-------------|
-| [`What-Changed_1.0.0_x64-setup.exe`](https://github.com/Soodkrish03/What-Changed/releases/latest) | **Recommended** — Standard Windows installer (NSIS) |
-| [`What-Changed_1.0.0_x64_en-US.msi`](https://github.com/Soodkrish03/What-Changed/releases/latest) | MSI installer — Supports silent install & Group Policy deployment |
+| [`What-Changed_1.1.0_x64-setup.exe`](https://github.com/Soodkrish03/What-Changed/releases/latest) | **Recommended** — Standard Windows installer (NSIS) |
+| [`What-Changed_1.1.0_x64_en-US.msi`](https://github.com/Soodkrish03/What-Changed/releases/latest) | MSI installer — Supports silent install & Group Policy deployment |
 
 > **Quick download:** Grab the `.exe` for a familiar Next→Next→Install wizard.
 
