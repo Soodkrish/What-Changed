@@ -94,12 +94,12 @@ Built with [Tauri 2.0](https://tauri.app/) for a tiny footprint (~30MB RAM) and 
 
 **Windows (recommended):**
 
-Download the latest installer from [**GitHub Releases →**](https://github.com/Soodkrish03/What-Changed/releases/latest)
+Download the latest installer from [**GitHub Releases →**](https://github.com/Soodkrish/What-Changed/releases/latest)
 
 | Installer | Description |
 |-----------|-------------|
-| [`What-Changed_1.1.0_x64-setup.exe`](https://github.com/Soodkrish03/What-Changed/releases/latest) | **Recommended** — Standard Windows installer (NSIS) |
-| [`What-Changed_1.1.0_x64_en-US.msi`](https://github.com/Soodkrish03/What-Changed/releases/latest) | MSI installer — Supports silent install & Group Policy deployment |
+| [`What-Changed_1.1.0_x64-setup.exe`](https://github.com/Soodkrish/What-Changed/releases/latest) | **Recommended** — Standard Windows installer (NSIS) |
+| [`What-Changed_1.1.0_x64_en-US.msi`](https://github.com/Soodkrish/What-Changed/releases/latest) | MSI installer — Supports silent install & Group Policy deployment |
 
 > **Quick download:** Grab the `.exe` for a familiar Next→Next→Install wizard.
 
@@ -124,7 +124,7 @@ Download the latest installer from [**GitHub Releases →**](https://github.com/
 ### Setup
 ```bash
 # Clone the repository
-git clone https://github.com/Soodkrish03/What-Changed.git
+git clone https://github.com/Soodkrish/What-Changed.git
 cd What-Changed
 
 # Install frontend dependencies
@@ -227,7 +227,7 @@ Contributions are welcome! Here's how:
 
 ## 🐛 Bug Reports
 
-Found a bug? Please [open an issue](https://github.com/Soodkrish03/What-Changed/issues/new) with:
+Found a bug? Please [open an issue](https://github.com/Soodkrish/What-Changed/issues/new) with:
 - Steps to reproduce
 - Expected behavior
 - Actual behavior
