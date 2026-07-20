@@ -52,8 +52,10 @@ export function Settings({ onDirtyChange, onSavedFlash }: SettingsProps) {
   const [savedFlash, setSavedFlash] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Snapshot of the last saved values for dirty detection
-  const lastSavedRef = useRef<string>("");
+  // Snapshot of the last saved values for dirty detection.
+  // null = not yet initialized (prevents false dirty on remount).
+  const lastSavedRef = useRef<string | null>(null);
+  const initialSyncDone = useRef(false);
 
   // Build a fingerprint of current settings values
   const currentFingerprint = useMemo(() =>
@@ -70,8 +72,8 @@ export function Settings({ onDirtyChange, onSavedFlash }: SettingsProps) {
     [scanFrequency, startMinimized, notificationsEnabled, dailySummary, dailySummaryWebhook, dailySummaryTime, autoStart, snapshotsEnabled]
   );
 
-  // Track dirty state
-  const isDirty = currentFingerprint !== lastSavedRef.current && lastSavedRef.current !== "";
+  // Track dirty state — null means "not yet synced", never dirty
+  const isDirty = lastSavedRef.current !== null && currentFingerprint !== lastSavedRef.current;
 
   // Notify parent of dirty state changes
   useEffect(() => {
@@ -97,20 +99,19 @@ export function Settings({ onDirtyChange, onSavedFlash }: SettingsProps) {
     if (settings.daily_summary_time !== undefined) setDailySummaryTime(settings.daily_summary_time);
     if (settings.autostart_enabled !== undefined) setAutoStart(settings.autostart_enabled === "true");
     if (settings.file_snapshots_enabled !== undefined) setSnapshotsEnabled(settings.file_snapshots_enabled === "true");
-    // Update the saved snapshot after settings load
-    if (lastSavedRef.current === "") {
-      lastSavedRef.current = JSON.stringify({
-        scanFrequency: settings.scan_frequency || "15",
-        startMinimized: settings.start_minimized === "true",
-        notificationsEnabled: settings.notifications_enabled !== "false",
-        dailySummary: settings.daily_summary_enabled !== "false",
-        dailySummaryWebhook: settings.daily_summary_webhook_enabled === "true",
-        dailySummaryTime: settings.daily_summary_time || "18:00",
-        autoStart: settings.autostart_enabled === "true",
-        snapshotsEnabled: settings.file_snapshots_enabled === "true",
-      });
-    }
   }, [settings]);
+
+  // Initialize lastSavedRef AFTER state has been synced from settings.
+  // Skip the first render (settings effect also fires that cycle, setters pending),
+  // then capture on the next render when state is actually synced.
+  useEffect(() => {
+    if (!initialSyncDone.current) {
+      initialSyncDone.current = true;
+      // Don't set here — state setters from useEffect([settings]) haven't applied yet.
+    } else if (lastSavedRef.current === null) {
+      lastSavedRef.current = currentFingerprint;
+    }
+  });
 
   const showToast = (type: "success" | "error", message: string) => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
