@@ -14,8 +14,9 @@ fn current_exe_path() -> Result<String, String> {
 }
 
 /// Enable auto-start on boot.
+/// `start_minimized`: if true, app starts hidden in tray on boot.
 #[cfg(target_os = "windows")]
-pub fn enable_autostart() -> Result<(), String> {
+pub fn enable_autostart(start_minimized: bool) -> Result<(), String> {
     use winreg::enums::*;
     use winreg::RegKey;
 
@@ -26,10 +27,16 @@ pub fn enable_autostart() -> Result<(), String> {
 
     let exe_path = current_exe_path()?;
 
-    run_key.set_value(APP_NAME, &format!("\"{}\" --minimized", exe_path))
+    let value = if start_minimized {
+        format!("\"{}\" --minimized", exe_path)
+    } else {
+        format!("\"{}\"", exe_path)
+    };
+
+    run_key.set_value(APP_NAME, &value)
         .map_err(|e| format!("Failed to set registry value: {}", e))?;
 
-    log::info!("Auto-start enabled: {}", exe_path);
+    log::info!("Auto-start enabled (minimized={}): {}", start_minimized, exe_path);
     Ok(())
 }
 
@@ -92,7 +99,7 @@ pub fn is_autostart_enabled() -> bool {
 
 /// Enable auto-start on boot (Linux).
 #[cfg(target_os = "linux")]
-pub fn enable_autostart() -> Result<(), String> {
+pub fn enable_autostart(start_minimized: bool) -> Result<(), String> {
     let autostart_dir = dirs::home_dir()
         .ok_or("Failed to get home directory")?
         .join(".config")
@@ -104,17 +111,23 @@ pub fn enable_autostart() -> Result<(), String> {
     let desktop_file = autostart_dir.join(format!("{}.desktop", APP_NAME));
     let exe_path = current_exe_path()?;
 
+    let exec = if start_minimized {
+        format!("{} --minimized", exe_path)
+    } else {
+        exe_path.clone()
+    };
+
     let content = format!(
         r#"[Desktop Entry]
 Type=Application
 Name=What Changed?
-Exec={} --minimized
+Exec={}
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
 Comment=Monitor file system changes
 "#,
-        exe_path
+        exec
     );
 
     std::fs::write(&desktop_file, content)
@@ -156,7 +169,7 @@ pub fn is_autostart_enabled() -> bool {
 
 /// Fallback for unsupported platforms.
 #[cfg(not(any(target_os = "windows", target_os = "linux")))]
-pub fn enable_autostart() -> Result<(), String> {
+pub fn enable_autostart(_start_minimized: bool) -> Result<(), String> {
     Err("Auto-start not supported on this platform".to_string())
 }
 

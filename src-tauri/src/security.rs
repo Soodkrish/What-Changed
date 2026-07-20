@@ -37,6 +37,7 @@ impl PathValidator {
     /// Validate a directory path is safe to scan.
     /// Returns Ok(()) if valid, Err with reason if invalid.
     pub fn validate_directory(path: &str) -> Result<(), String> {
+
         // 1. Empty check
         if path.trim().is_empty() {
             return Err("Path cannot be empty".to_string());
@@ -147,9 +148,17 @@ impl PathValidator {
                 }
             }
             // Reject NTFS Alternate Data Streams (colon after drive letter)
-            let without_drive = if canonical_str.len() > 2 { &canonical_str[2..] } else { "" };
-            if without_drive.contains(':') {
-                return Err("Alternate data streams are not allowed".to_string());
+            // Check the original path, NOT canonical_str — canonicalize() on Windows
+            // returns UNC format (\\?\C:\...) which has colons that cause false positives.
+            // Normalize: strip leading/trailing whitespace and any trailing separators
+            let trimmed = path.trim();
+            let normalized_path = trimmed.trim_end_matches('\\').trim_end_matches('/');
+            // Only check for ADS if the path has a drive letter (e.g., "C:\...")
+            if normalized_path.len() >= 2 && normalized_path.as_bytes()[1] == b':' {
+                let without_drive = &normalized_path[2..];
+                if without_drive.contains(':') {
+                    return Err("Alternate data streams are not allowed".to_string());
+                }
             }
         }
 
@@ -265,9 +274,15 @@ impl PathValidator {
                 }
             }
             // Reject NTFS Alternate Data Streams
-            let without_drive = if canonical_str.len() > 2 { &canonical_str[2..] } else { "" };
-            if without_drive.contains(':') {
-                return Err("Alternate data streams are not allowed".to_string());
+            // Check the original path, NOT canonical_str — canonicalize() on Windows
+            // returns UNC format (\\?\C:\...) which has colons that cause false positives.
+            let trimmed = path.trim();
+            let normalized_path = trimmed.trim_end_matches('\\').trim_end_matches('/');
+            if normalized_path.len() >= 2 && normalized_path.as_bytes()[1] == b':' {
+                let without_drive = &normalized_path[2..];
+                if without_drive.contains(':') {
+                    return Err("Alternate data streams are not allowed".to_string());
+                }
             }
         }
 

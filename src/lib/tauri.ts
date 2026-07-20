@@ -235,8 +235,8 @@ export async function getSchedulerStatus(): Promise<boolean> {
 }
 
 // Auto-start
-export async function enableAutostart(): Promise<void> {
-  return invoke("enable_autostart");
+export async function enableAutostart(startMinimized?: boolean): Promise<void> {
+  return invoke("enable_autostart", { startMinimized: startMinimized ?? null });
 }
 
 export async function disableAutostart(): Promise<void> {

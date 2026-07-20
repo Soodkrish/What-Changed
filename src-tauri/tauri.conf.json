@@ -1,6 +1,6 @@
 {
   "productName": "What Changed",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "identifier": "com.whatchanged.app",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -18,7 +18,7 @@
         "minWidth": 900,
         "minHeight": 600,
         "center": true,
-        "visible": false,
+        "visible": true,
         "decorations": true
       }
     ],

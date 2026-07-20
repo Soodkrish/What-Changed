@@ -116,7 +116,7 @@ export function Settings() {
 
       // Handle auto-start
       if (autoStart) {
-        await enableAutostart();
+        await enableAutostart(startMinimized);
       } else {
         await disableAutostart();
       }

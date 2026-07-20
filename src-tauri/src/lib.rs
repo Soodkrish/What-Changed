@@ -491,8 +491,8 @@ async fn get_scheduler_status(
 }
 
 #[tauri::command]
-fn enable_autostart() -> Result<(), String> {
-    autostart::enable_autostart()
+fn enable_autostart(start_minimized: Option<bool>) -> Result<(), String> {
+    autostart::enable_autostart(start_minimized.unwrap_or(false))
 }
 
 #[tauri::command]
@@ -1735,8 +1735,13 @@ pub fn run() {
             match tray::build_main_window(app.handle(), None) {
                 Ok(w) => {
                     if should_show {
-                        let _ = w.show();
-                        let _ = w.set_focus();
+                        // Small delay to ensure window is fully initialized before showing
+                        let w_handle = w.as_ref().clone();
+                        tauri::async_runtime::spawn(async move {
+                            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                            let _ = w_handle.show();
+                            let _ = w_handle.set_focus();
+                        });
                     } else {
                         let _ = w.hide();
                     }
