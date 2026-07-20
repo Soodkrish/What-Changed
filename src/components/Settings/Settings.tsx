@@ -87,8 +87,9 @@ export function Settings() {
         refresh();
         showToast("success", `Now monitoring: ${path.split(/[/\\]/).pop()}`);
       }
-    } catch (err) {
-      showToast("error", `Failed to add folder: ${err}`);
+    } catch (err: any) {
+      const msg = typeof err === "string" ? err : err?.message || "Failed to add folder";
+      showToast("error", `Could not add folder: ${msg}`);
     }
   };
 

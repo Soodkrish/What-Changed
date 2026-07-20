@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FolderOpen, RefreshCw, BarChart3, Shield, Settings, CheckCircle2, ArrowRight } from "lucide-react";
+import { FolderOpen, RefreshCw, BarChart3, Shield, Settings, CheckCircle2, ArrowRight, Check, AlertCircle } from "lucide-react";
 import { getMonitoredFolders, openFolderPicker, addMonitoredFolder, scanAll } from "../../lib/tauri";
 
 interface OnboardingFlowProps {
@@ -25,11 +25,15 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [hasFolders, setHasFolders] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [folderPicking, setFolderPicking] = useState(false);
+  const [folderAdded, setFolderAdded] = useState(false);
+  const [folderError, setFolderError] = useState<string | null>(null);
 
   useEffect(() => {
     getMonitoredFolders().then((folders) => {
       if (folders.length > 0) {
         setHasFolders(true);
+        setFolderAdded(true);
         // Skip folder step if already has folders
         setCurrentStep(2);
       }
@@ -37,15 +41,24 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   }, []);
 
   const handleAddFolder = async () => {
+    setFolderPicking(true);
+    setFolderError(null);
     try {
       const path = await openFolderPicker();
       if (path) {
         await addMonitoredFolder(path);
         setHasFolders(true);
+        setFolderAdded(true);
+        // Brief pause so user sees the success state
+        await new Promise((r) => setTimeout(r, 800));
         setCurrentStep(2);
       }
-    } catch (err) {
+    } catch (err: any) {
+      const msg = typeof err === "string" ? err : err?.message || "Failed to add folder";
+      setFolderError(msg);
       console.error("Failed to add folder:", err);
+    } finally {
+      setFolderPicking(false);
     }
   };
 
@@ -73,7 +86,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             <div
               key={s.id}
               className={`w-2 h-2 rounded-full transition-colors ${
-                i <= currentStep ? "bg-brand-500" : "bg-gray-200"
+                i <= currentStep ? "bg-brand-500" : "bg-gray-200 dark:bg-gray-700"
               }`}
             />
           ))}
@@ -85,11 +98,27 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             <Icon className="w-8 h-8 text-brand-600" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{step.title}</h2>
-          <p className="text-gray-500">{step.description}</p>
+          <p className="text-gray-500 dark:text-gray-400">{step.description}</p>
         </div>
 
+        {/* Error banner */}
+        {folderError && (
+          <div className="mx-auto max-w-sm mb-4 px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-red-700 dark:text-red-300">{folderError}</p>
+              <button
+                onClick={() => setFolderError(null)}
+                className="text-xs text-red-500 hover:text-red-700 mt-1 underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Step actions */}
-        <div className="flex justify-center">
+        <div className="flex flex-col items-center gap-3">
           {currentStep === 0 && (
             <button
               onClick={() => setCurrentStep(1)}
@@ -101,20 +130,44 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           )}
 
           {currentStep === 1 && (
-            <div className="flex gap-3">
-              <button
-                onClick={handleAddFolder}
-                className="flex items-center gap-2 px-6 py-3 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
-              >
-                <FolderOpen className="w-4 h-4" />
-                Choose Folder
-              </button>
-              <button
-                onClick={() => setCurrentStep(2)}
-                className="px-4 py-3 text-sm text-gray-500 hover:text-gray-700"
-              >
-                Skip for now
-              </button>
+            <div className="flex flex-col items-center gap-3">
+              <div className="flex gap-3">
+                <button
+                  onClick={handleAddFolder}
+                  disabled={folderPicking}
+                  className="flex items-center gap-2 px-6 py-3 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors disabled:opacity-60"
+                >
+                  {folderPicking ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Opening folder picker...
+                    </>
+                  ) : folderAdded ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      Folder Added ✓
+                    </>
+                  ) : (
+                    <>
+                      <FolderOpen className="w-4 h-4" />
+                      Choose Folder
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setCurrentStep(2)}
+                  disabled={folderPicking}
+                  className="px-4 py-3 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50"
+                >
+                  {folderAdded ? "Next" : "Skip for now"}
+                </button>
+              </div>
+              {folderAdded && !folderPicking && (
+                <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                  <Check className="w-3 h-3" />
+                  Folder added successfully — you can add more or continue
+                </p>
+              )}
             </div>
           )}
 
@@ -130,7 +183,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
               </button>
               <button
                 onClick={() => setCurrentStep(3)}
-                className="px-4 py-3 text-sm text-gray-500 hover:text-gray-700"
+                className="px-4 py-3 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
               >
                 Skip
               </button>
@@ -146,7 +199,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                   { icon: Shield, text: "File recovery & snapshots" },
                   { icon: Settings, text: "Custom notification rules" },
                 ].map(({ icon: ItemIcon, text }) => (
-                  <div key={text} className="flex items-center gap-2 text-sm text-gray-600">
+                  <div key={text} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                     <ItemIcon className="w-4 h-4 text-brand-500" />
                     {text}
                   </div>

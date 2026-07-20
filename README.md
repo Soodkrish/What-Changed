@@ -97,8 +97,8 @@ Download the latest installer from [**GitHub Releases →**](https://github.com/
 
 | Installer | Description |
 |-----------|-------------|
-| [`What-Changed_1.1.0_x64-setup.exe`](https://github.com/Soodkrish/What-Changed/releases/latest) | **Recommended** — Standard Windows installer (NSIS) |
-| [`What-Changed_1.1.0_x64_en-US.msi`](https://github.com/Soodkrish/What-Changed/releases/latest) | MSI installer — Supports silent install & Group Policy deployment |
+| [`What-Changed_1.1.1_x64-setup.exe`](https://github.com/Soodkrish/What-Changed/releases/latest) | **Recommended** — Standard Windows installer (NSIS) |
+| [`What-Changed_1.1.1_x64_en-US.msi`](https://github.com/Soodkrish/What-Changed/releases/latest) | MSI installer — Supports silent install & Group Policy deployment |
 
 > **Quick download:** Grab the `.exe` for a familiar Next→Next→Install wizard.
 

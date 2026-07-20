@@ -208,6 +208,9 @@ export async function getDailySummary(): Promise<string> {
 }
 
 // Native folder picker
+// NOTE: Do NOT pass `filters` — on Windows, an empty filters array
+// triggers "failure to get alternative strings" from the IFileOpenDialog
+// COM API. For directory picking, filters are meaningless anyway.
 export async function openFolderPicker(): Promise<string | null> {
   const selected = await open({
     directory: true,
