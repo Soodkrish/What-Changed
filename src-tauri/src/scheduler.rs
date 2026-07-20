@@ -225,7 +225,10 @@ impl ScanScheduler {
                 files_scanned: 0,
             });
 
-            match scanner.scan_directory(&folder.path) {
+            // Cache ignore patterns once per folder (1 DB query instead of N per file)
+            let patterns = db.get_ignore_patterns_for_folder(folder.id).unwrap_or_default();
+
+            match scanner.scan_directory(&folder.path, batch_id, &patterns) {
                 Ok(result) => {
                     batch_new += result.new_files;
                     batch_modified += result.modified_files;

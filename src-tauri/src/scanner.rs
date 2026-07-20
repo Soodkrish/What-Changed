@@ -45,13 +45,15 @@ impl Scanner {
         Scanner { db }
     }
 
-    /// Perform a full scan of a directory and return scan results
-    pub fn scan_directory(&self, dir_path: &str) -> Result<ScanResult, String> {
-        // Get folder ID for ignore pattern lookup
-        let folder_id = self.db.get_monitored_folders()
-            .ok()
-            .and_then(|folders| folders.into_iter().find(|f| f.path == dir_path).map(|f| f.id));
-
+    /// Perform a full scan of a directory and return scan results.
+    /// `batch_id` is passed in so insert_change doesn't need a subquery.
+    /// `ignore_patterns` are pre-loaded once at scan start to avoid per-file DB queries.
+    pub fn scan_directory(
+        &self,
+        dir_path: &str,
+        batch_id: i64,
+        ignore_patterns: &[crate::database::IgnorePattern],
+    ) -> Result<ScanResult, String> {
         let path = Path::new(dir_path);
         if !path.exists() {
             return Err(format!("Directory does not exist: {}", dir_path));
@@ -82,11 +84,11 @@ impl Scanner {
 
                     let file_path = entry.path().to_string_lossy().to_string();
 
-                    // Check ignore patterns for this folder
-                    if let Some(fid) = folder_id {
-                        if self.db.should_ignore_file(&file_path, fid) {
-                            continue;
-                        }
+                    // Check cached ignore patterns (no DB query)
+                    if !ignore_patterns.is_empty()
+                        && crate::database::Database::check_ignore_patterns(&file_path, ignore_patterns)
+                    {
+                        continue;
                     }
 
                     let metadata = match fs::metadata(entry.path()) {
@@ -124,10 +126,11 @@ impl Scanner {
                         .and_then(|e| e.to_str())
                         .map(|e| e.to_string());
 
-                    // Check if file already exists in DB
+                    // Check if file already exists in DB (1 query)
                     let existing = self.db.get_file_by_path(&file_path).ok().flatten();
 
-                    let _file_id = self
+                    // Upsert — returns file_id directly (no re-query needed)
+                    let file_id = self
                         .db
                         .upsert_file(
                             &file_path,
@@ -161,31 +164,24 @@ impl Scanner {
                     if let Some(ref existing_file) = existing {
                         if existing_file.mtime != mtime_str {
                             modified_files += 1;
-                            self.db
-                                .insert_change(existing_file.id, "MODIFIED", None)
-                                .ok();
+                            // Use batch-aware insert (no subquery for batch_id)
+                            self.db.insert_change_in_batch(existing_file.id, "MODIFIED", None, None, batch_id).ok();
                         }
                     } else {
-                        // File at this path is new to the DB — but could be a move
-                        // from another location. Check if any active file has the same
-                        // name + size (potential source of the move).
+                        // New file — check if it's a move from another location
                         let is_potential_move = self
                             .db
                             .find_file_by_name_and_size(&filename, size, &file_path)
                             .map(|candidates| {
-                                // Only if one of the candidates' path is missing from disk
                                 candidates.iter().any(|c| !Path::new(&c.path).exists())
                             })
                             .unwrap_or(false);
 
                         if !is_potential_move {
                             new_files += 1;
-                            if let Ok(Some(file)) = self.db.get_file_by_path(&file_path) {
-                                self.db.insert_change(file.id, "NEW", None).ok();
-                            }
+                            // Use file_id from upsert (no re-query!)
+                            self.db.insert_change_in_batch(file_id, "NEW", None, None, batch_id).ok();
                         }
-                        // If it IS a potential move, don't record NEW —
-                        // cleanup_deleted will handle it as MOVED
                     }
                 }
                 Err(e) => {
@@ -213,10 +209,14 @@ impl Scanner {
             .get_monitored_folders()
             .map_err(|e| format!("DB error: {}", e))?;
 
+        let batch_id = self.db.create_scan_batch(folders.len() as i64, "").unwrap_or(0);
+
         let mut results = Vec::new();
         for folder in folders {
             if folder.enabled {
-                match self.scan_directory(&folder.path) {
+                // Cache ignore patterns once per folder (1 DB query instead of N)
+                let patterns = self.db.get_ignore_patterns_for_folder(folder.id).unwrap_or_default();
+                match self.scan_directory(&folder.path, batch_id, &patterns) {
                     Ok(result) => results.push(result),
                     Err(e) => log::error!("Failed to scan {}: {}", folder.path, e),
                 }
@@ -229,95 +229,96 @@ impl Scanner {
     /// For each missing file, search for new files with the same name + size.
     /// If found: record as MOVED, update the file record path.
     /// If not found: do a filesystem search as fallback, then mark as DELETED.
+    /// Uses batched DB queries to avoid loading all files into memory at once.
     pub fn cleanup_deleted(&self) -> Result<(i64, i64), String> {
-        let active_files = self
-            .db
-            .get_all_active_files()
-            .map_err(|e| format!("DB error: {}", e))?;
+        const BATCH_SIZE: i64 = 2000;
 
         let mut moved_count = 0i64;
         let mut deleted_count = 0i64;
+        let mut offset = 0i64;
+        let mut total_processed = 0u64;
 
-        for file in active_files {
-            let file_exists = match fs::metadata(&file.path) {
-                Ok(_) => true,
-                Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
-                    // Permission denied = file still exists, just can't access it
-                    log::debug!("Skipping inaccessible file (permission denied): {}", file.path);
-                    true
-                }
-                Err(_) => false, // Not found = truly missing
-            };
+        loop {
+            let batch = self.db.get_active_files_batch(offset, BATCH_SIZE)
+                .map_err(|e| format!("DB error: {}", e))?;
 
-            if !file_exists {
-                // File is missing — try to find it by name + size in DB first
-                let candidates = self
-                    .db
-                    .find_file_by_name_and_size(&file.filename, file.size, &file.path)
-                    .map_err(|e| format!("DB error: {}", e))?;
+            if batch.is_empty() {
+                break;
+            }
 
-                // Find a candidate whose path actually exists on disk (moved, not just new)
-                let moved_to = candidates.iter().find(|c| Path::new(&c.path).exists());
+            for file in &batch {
+                total_processed += 1;
+                let file_exists = match fs::metadata(&file.path) {
+                    Ok(_) => true,
+                    Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+                        log::debug!("Skipping inaccessible file (permission denied): {}", file.path);
+                        true
+                    }
+                    Err(_) => false,
+                };
 
-                if let Some(new_file) = moved_to {
-                    // It's a move — mark old record as deleted, record move with new file's ID
-                    self.db.mark_file_deleted(&file.path).ok();
-                    self.db
-                        .insert_change_with_paths(
-                            new_file.id,
-                            "MOVED",
-                            Some(&file.path),
-                            Some(&new_file.path),
-                        )
-                        .ok();
-                    moved_count += 1;
-                } else {
-                    // DB didn't find a match — try filesystem search as fallback
-                    match search_filesystem(&file.filename, file.size, &file.path) {
-                        Some(found_path) => {
-                            // Found it on disk! Upsert the new path and record as MOVED
-                            if let Ok(new_id) = self.db.upsert_file(
-                                &found_path,
-                                &file.filename,
-                                file.extension.as_deref(),
-                                file.size,
-                                &file.mtime,
-                                &file.ctime,
-                            ) {
+                if !file_exists {
+                    let candidates = self
+                        .db
+                        .find_file_by_name_and_size(&file.filename, file.size, &file.path)
+                        .map_err(|e| format!("DB error: {}", e))?;
+
+                    let moved_to = candidates.iter().find(|c| Path::new(&c.path).exists());
+
+                    if let Some(new_file) = moved_to {
+                        self.db.mark_file_deleted(&file.path).ok();
+                        self.db
+                            .insert_change_with_paths(
+                                new_file.id,
+                                "MOVED",
+                                Some(&file.path),
+                                Some(&new_file.path),
+                            )
+                            .ok();
+                        moved_count += 1;
+                    } else {
+                        match search_filesystem(&file.filename, file.size, &file.path) {
+                            Some(found_path) => {
+                                if let Ok(new_id) = self.db.upsert_file(
+                                    &found_path,
+                                    &file.filename,
+                                    file.extension.as_deref(),
+                                    file.size,
+                                    &file.mtime,
+                                    &file.ctime,
+                                ) {
+                                    self.db.mark_file_deleted(&file.path).ok();
+                                    self.db
+                                        .insert_change_with_paths(
+                                            new_id,
+                                            "MOVED",
+                                            Some(&file.path),
+                                            Some(&found_path),
+                                        )
+                                        .ok();
+                                    moved_count += 1;
+                                }
+                            }
+                            None => {
                                 self.db.mark_file_deleted(&file.path).ok();
                                 self.db
-                                    .insert_change_with_paths(
-                                        new_id,
-                                        "MOVED",
-                                        Some(&file.path),
-                                        Some(&found_path),
-                                    )
+                                    .insert_change(file.id, "DELETED", None)
                                     .ok();
-                                moved_count += 1;
-                                log::info!(
-                                    "Filesystem search found moved file: {} -> {}",
-                                    file.path,
-                                    found_path
-                                );
+                                deleted_count += 1;
                             }
-                        }
-                        None => {
-                            // Truly deleted
-                            self.db.mark_file_deleted(&file.path).ok();
-                            self.db
-                                .insert_change(file.id, "DELETED", None)
-                                .ok();
-                            deleted_count += 1;
                         }
                     }
                 }
             }
+
+            offset += BATCH_SIZE;
         }
 
         log::info!(
-            "Cleanup: {} moved, {} deleted",
+            "Cleanup: {} moved, {} deleted (scanned {} files in batches)",
             moved_count,
-            deleted_count
+            deleted_count,
+            total_processed
         );
         Ok((deleted_count, moved_count))
     }

@@ -112,6 +112,8 @@ pub fn create_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                         .buttons(MessageDialogButtons::OkCancel)
                         .show(move |confirmed| {
                             if confirmed {
+                                // Set the quit flag so the ExitRequested handler allows exit
+                                crate::set_quit_flag();
                                 app_clone.exit(0);
                             }
                         });

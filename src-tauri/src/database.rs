@@ -108,6 +108,7 @@ impl Database {
 
             CREATE INDEX IF NOT EXISTS idx_files_path ON files(path);
             CREATE INDEX IF NOT EXISTS idx_files_hash ON files(hash);
+            CREATE INDEX IF NOT EXISTS idx_files_name_size ON files(filename, size);
             CREATE INDEX IF NOT EXISTS idx_changes_file ON changes(file_id);
             CREATE INDEX IF NOT EXISTS idx_changes_time ON changes(detected_at);
             CREATE INDEX IF NOT EXISTS idx_snapshots_dir_date ON snapshots(directory, snapshot_date);
@@ -412,6 +413,32 @@ impl Database {
         rows.collect::<Result<Vec<_>>>()
     }
 
+    /// Get active files in batches to avoid loading all into memory at once.
+    /// Returns empty Vec when no more files remain.
+    pub fn get_active_files_batch(&self, offset: i64, limit: i64) -> Result<Vec<FileRecord>> {
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let mut stmt = conn.prepare(
+            "SELECT id, path, filename, extension, size, mtime, ctime, hash, first_seen, last_seen, is_deleted
+             FROM files WHERE is_deleted = 0 ORDER BY id LIMIT ?1 OFFSET ?2",
+        )?;
+        let rows = stmt.query_map(params![limit, offset], |row| {
+            Ok(FileRecord {
+                id: row.get(0)?,
+                path: row.get(1)?,
+                filename: row.get(2)?,
+                extension: row.get(3)?,
+                size: row.get(4)?,
+                mtime: row.get(5)?,
+                ctime: row.get(6)?,
+                hash: row.get(7)?,
+                first_seen: row.get(8)?,
+                last_seen: row.get(9)?,
+                is_deleted: row.get(10)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>>>()
+    }
+
     pub fn update_file_hash(&self, id: i64, hash: &str) -> Result<()> {
         let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute(
@@ -698,7 +725,8 @@ impl Database {
              FROM changes c
              JOIN files f ON c.file_id = f.id
              WHERE DATE(c.detected_at) = DATE('now')
-             ORDER BY c.detected_at DESC",
+             ORDER BY c.detected_at DESC
+             LIMIT 5000",
         )?;
         let rows = stmt.query_map([], |row| {
             Ok(ChangeRecord {
@@ -1334,6 +1362,34 @@ impl Database {
         rows.collect::<Result<Vec<_>>>()
     }
 
+    /// Get latest snapshot hash per file path — used for batch dedup during scans.
+    /// Returns HashMap<original_path, file_hash>.
+    pub fn get_latest_snapshot_hashes(&self) -> Result<std::collections::HashMap<String, String>> {
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        let mut stmt = conn.prepare(
+            "SELECT fs.original_path, fs.file_hash
+             FROM file_snapshots fs
+             INNER JOIN (
+                SELECT original_path, MAX(created_at) as max_created
+                FROM file_snapshots
+                WHERE file_hash IS NOT NULL
+                GROUP BY original_path
+             ) latest ON fs.original_path = latest.original_path AND fs.created_at = latest.max_created
+             WHERE fs.file_hash IS NOT NULL",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            let path: String = row.get(0)?;
+            let hash: String = row.get(1)?;
+            Ok((path, hash))
+        })?;
+        let mut map = std::collections::HashMap::new();
+        for row in rows {
+            let (path, hash) = row?;
+            map.insert(path, hash);
+        }
+        Ok(map)
+    }
+
     pub fn get_file_snapshot_stats(&self) -> Result<(i64, i64)> {
         let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt = conn.prepare(
@@ -1645,11 +1701,16 @@ impl Database {
     /// Check if a file path matches any ignore pattern for its parent folder
     pub fn should_ignore_file(&self, file_path: &str, folder_id: i64) -> bool {
         let patterns = self.get_ignore_patterns_for_folder(folder_id).unwrap_or_default();
+        Self::check_ignore_patterns(file_path, &patterns)
+    }
+
+    /// Check if a file matches pre-loaded ignore patterns (no DB query).
+    /// Cache the patterns once at scan start and call this per file.
+    pub fn check_ignore_patterns(file_path: &str, patterns: &[IgnorePattern]) -> bool {
         let path_lower = file_path.replace('\\', "/").to_lowercase();
-        for p in &patterns {
+        for p in patterns {
             match p.pattern_type.as_str() {
                 "glob" => {
-                    // Simple glob matching: convert glob to a check
                     let pat = p.pattern.replace('\\', "/");
                     if glob_match(&pat, &path_lower) {
                         return true;

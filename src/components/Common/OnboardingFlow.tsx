@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { FolderOpen, RefreshCw, BarChart3, Shield, Settings, CheckCircle2, ArrowRight, Check, AlertCircle } from "lucide-react";
-import { getMonitoredFolders, openFolderPicker, addMonitoredFolder, scanAll } from "../../lib/tauri";
+import { getMonitoredFolders, openFolderPicker, addMonitoredFolder, scanAllAsync } from "../../lib/tauri";
+import { listen } from "@tauri-apps/api/event";
+import type { ScanProgress as ScanProgressType } from "../../lib/tauri";
 
 interface OnboardingFlowProps {
   onComplete: () => void;
@@ -28,6 +30,8 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const [folderPicking, setFolderPicking] = useState(false);
   const [folderAdded, setFolderAdded] = useState(false);
   const [folderError, setFolderError] = useState<string | null>(null);
+  const [scanProgress, setScanProgress] = useState<ScanProgressType | null>(null);
+  const scanCompleteRef = useRef(false);
 
   useEffect(() => {
     getMonitoredFolders().then((folders) => {
@@ -64,15 +68,35 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
   const handleFirstScan = async () => {
     setScanning(true);
+    scanCompleteRef.current = false;
     try {
-      await scanAll();
-      setCurrentStep(3);
+      await scanAllAsync();
     } catch (err) {
       console.error("Scan failed:", err);
-    } finally {
       setScanning(false);
     }
   };
+
+  // Listen for scan progress and completion during onboarding
+  useEffect(() => {
+    if (!scanning) return;
+
+    const unlistenProgress = listen<ScanProgressType>("scan-progress", (event) => {
+      setScanProgress(event.payload);
+    });
+
+    const unlistenComplete = listen<void>("scan-complete", () => {
+      scanCompleteRef.current = true;
+      setScanning(false);
+      setScanProgress(null);
+      setCurrentStep(3);
+    });
+
+    return () => {
+      unlistenProgress.then((fn) => fn());
+      unlistenComplete.then((fn) => fn());
+    };
+  }, [scanning]);
 
   const step = steps[currentStep];
   const Icon = step.icon;
@@ -172,21 +196,55 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           )}
 
           {currentStep === 2 && (
-            <div className="flex gap-3">
-              <button
-                onClick={handleFirstScan}
-                disabled={scanning || !hasFolders}
-                className="flex items-center gap-2 px-6 py-3 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${scanning ? "animate-spin" : ""}`} />
-                {scanning ? "Scanning..." : hasFolders ? "Run First Scan" : "Add a folder first"}
-              </button>
-              <button
-                onClick={() => setCurrentStep(3)}
-                className="px-4 py-3 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              >
-                Skip
-              </button>
+            <div className="flex flex-col items-center gap-4">
+              {scanning ? (
+                <div className="w-full max-w-sm">
+                  <div className="flex items-center gap-3 mb-3">
+                    <RefreshCw className="w-5 h-5 text-brand-500 animate-spin" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        {scanProgress?.phase === "cleanup" ? "Cleaning up deleted files..." :
+                         scanProgress?.phase === "snapshot" ? "Taking storage snapshot..." :
+                         scanProgress?.phase === "scanning" ? "Scanning files..." : "Scanning..."}
+                      </p>
+                      {scanProgress?.directory && (
+                        <p className="text-xs text-gray-500 truncate">
+                          {scanProgress.directory.split(/[/\\]/).pop()}
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-sm font-semibold text-brand-600">
+                      {scanProgress?.progress_percent ?? 0}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-brand-500 rounded-full transition-all duration-300"
+                      style={{ width: `${scanProgress?.progress_percent ?? 0}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2 text-center">
+                    {scanProgress?.total ?? 0} folders — this may take a moment
+                  </p>
+                </div>
+              ) : (
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleFirstScan}
+                    disabled={!hasFolders}
+                    className="flex items-center gap-2 px-6 py-3 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    {hasFolders ? "Run First Scan" : "Add a folder first"}
+                  </button>
+                  <button
+                    onClick={() => setCurrentStep(3)}
+                    className="px-4 py-3 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  >
+                    Skip
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

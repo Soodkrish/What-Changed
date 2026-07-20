@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense, useRef } from "react";
 import { Layout } from "./components/Common/Layout";
 import { Dashboard } from "./components/Dashboard/Dashboard";
 import { ScanProgress } from "./components/Common/ScanProgress";
@@ -8,7 +8,8 @@ import { UpdateBanner } from "./components/Common/UpdateBanner";
 import { listen } from "@tauri-apps/api/event";
 import { useDarkMode } from "./hooks/useDarkMode";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { getMonitoredFolders, scanAll, checkForUpdates, type UpdateInfo } from "./lib/tauri";
+import { getMonitoredFolders, scanAllAsync, checkForUpdates, type UpdateInfo } from "./lib/tauri";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 // Lazy-load non-default views (code splitting — saves 10-15MB upfront)
 const Settings = lazy(() => import("./components/Settings/Settings").then(m => ({ default: m.Settings })));
@@ -29,6 +30,36 @@ function App() {
   const [closeToast, setCloseToast] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [updateDismissed, setUpdateDismissed] = useState(false);
+  const [hasUnsavedSettings, setHasUnsavedSettings] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const pendingNavigation = useRef<ViewType | null>(null);
+  const savedFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Ribbon color: green flash when just saved, red when dirty, neutral otherwise
+  const ribbonState = savedFlash ? "saved" : hasUnsavedSettings ? "dirty" : "clean";
+
+  // Update window title bar with colored dot indicator
+  useEffect(() => {
+    const appWindow = getCurrentWindow();
+    const dot = ribbonState === "saved" ? " \u{1F7E2}"  // 🟢 green
+      : ribbonState === "dirty" ? " \u{1F534}"           // 🔴 red
+      : "";
+    appWindow.setTitle(`What Changed?${dot}`).catch(() => {});
+  }, [ribbonState]);
+
+  const handleSavedFlash = useCallback(() => {
+    setSavedFlash(true);
+    if (savedFlashTimerRef.current) clearTimeout(savedFlashTimerRef.current);
+    savedFlashTimerRef.current = setTimeout(() => setSavedFlash(false), 2000);
+  }, []);
+
+  // Cleanup flash timer on unmount
+  useEffect(() => {
+    return () => {
+      if (savedFlashTimerRef.current) clearTimeout(savedFlashTimerRef.current);
+    };
+  }, []);
 
   // Check if this is a first run
   useEffect(() => {
@@ -83,8 +114,8 @@ function App() {
 
   const handleScan = useCallback(async () => {
     try {
-      await scanAll();
-      setRefreshKey((prev) => prev + 1);
+      await scanAllAsync();
+      // Progress and completion are handled by the ScanProgress listener
     } catch (err) {
       console.error("Scan failed:", err);
     }
@@ -98,8 +129,32 @@ function App() {
     return () => { unlisten.then((fn) => fn()); };
   }, [handleScan]);
 
+  // Safe navigation: intercept navigation away from Settings if unsaved changes
+  const safeNavigate = useCallback((view: ViewType) => {
+    if (hasUnsavedSettings && currentView === "settings") {
+      pendingNavigation.current = view;
+      setShowUnsavedDialog(true);
+    } else {
+      setCurrentView(view);
+    }
+  }, [hasUnsavedSettings, currentView]);
+
+  const handleUnsavedDiscard = useCallback(() => {
+    setShowUnsavedDialog(false);
+    setHasUnsavedSettings(false);
+    if (pendingNavigation.current) {
+      setCurrentView(pendingNavigation.current);
+      pendingNavigation.current = null;
+    }
+  }, []);
+
+  const handleUnsavedCancel = useCallback(() => {
+    setShowUnsavedDialog(false);
+    pendingNavigation.current = null;
+  }, []);
+
   useKeyboardShortcuts({
-    onNavigate: setCurrentView,
+    onNavigate: safeNavigate,
     onScan: handleScan,
     onToggleDark: toggleDark,
   });
@@ -109,7 +164,7 @@ function App() {
       {showOnboarding && onboardingChecked && (
         <OnboardingFlow onComplete={() => setShowOnboarding(false)} />
       )}
-      <Layout currentView={currentView} onNavigate={setCurrentView} dark={dark} onToggleDark={toggleDark}>
+      <Layout currentView={currentView} onNavigate={safeNavigate} dark={dark} onToggleDark={toggleDark}>
         {/* Update notification banner */}
         {updateInfo && !updateDismissed && (
           <UpdateBanner
@@ -129,7 +184,7 @@ function App() {
         }>
           {currentView === "settings" && (
             <ErrorBoundary fallbackTitle="Settings Error">
-              <Settings />
+              <Settings onDirtyChange={setHasUnsavedSettings} onSavedFlash={handleSavedFlash} />
             </ErrorBoundary>
           )}
           {currentView === "duplicates" && (
@@ -158,6 +213,34 @@ function App() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           Hidden to tray. Auto-scans continue in background.
+        </div>
+      )}
+
+      {/* Unsaved settings confirmation dialog */}
+      {showUnsavedDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Unsaved Changes
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              You have unsaved changes in Settings. If you leave now, your changes will be lost.
+            </p>
+            <div className="flex items-center gap-3 justify-end">
+              <button
+                onClick={handleUnsavedCancel}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                Stay on Settings
+              </button>
+              <button
+                onClick={handleUnsavedDiscard}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+              >
+                Discard & Leave
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </ErrorBoundary>

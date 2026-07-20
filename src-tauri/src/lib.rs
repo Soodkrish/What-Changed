@@ -25,8 +25,22 @@ use scheduler::ScanScheduler;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
+use std::sync::atomic::AtomicBool as StdAtomicBool;
 use tauri::{Manager, Emitter, WindowEvent};
 use events::ScanProgressEvent;
+
+/// Global flag to distinguish intentional quit from window close.
+/// When true, the RunEvent ExitRequested handler allows the process to exit.
+static QUIT_FLAG: OnceLock<StdAtomicBool> = OnceLock::new();
+
+pub(crate) fn set_quit_flag() {
+    let flag = QUIT_FLAG.get_or_init(|| StdAtomicBool::new(false));
+    flag.store(true, Ordering::SeqCst);
+}
+
+fn is_quit_requested() -> bool {
+    QUIT_FLAG.get().map(|f| f.load(Ordering::SeqCst)).unwrap_or(false)
+}
 
 /// Global async HTTP client for webhooks.
 /// Lives for the entire process lifetime — only ~1MB overhead.
@@ -92,7 +106,16 @@ fn scan_directory(
     // Security: validate path
     PathValidator::validate_directory(&path)?;
     let scanner = Scanner::new(state.db.clone());
-    scanner.scan_directory(&path)
+
+    // Create batch and cache ignore patterns for this directory
+    let batch_id = state.db.create_scan_batch(1, &path).unwrap_or(0);
+    let patterns = state.db.get_monitored_folders()
+        .ok()
+        .and_then(|folders| folders.iter().find(|f| f.path == path).map(|f| f.id))
+        .and_then(|id| state.db.get_ignore_patterns_for_folder(id).ok())
+        .unwrap_or_default();
+
+    scanner.scan_directory(&path, batch_id, &patterns)
 }
 
 #[tauri::command]
@@ -149,7 +172,10 @@ fn scan_all(
             continue;
         }
 
-        match scanner.scan_directory(&folder.path) {
+        // Cache ignore patterns once per folder (1 DB query instead of N)
+        let patterns = state.db.get_ignore_patterns_for_folder(folder.id).unwrap_or_default();
+
+        match scanner.scan_directory(&folder.path, batch_id, &patterns) {
             Ok(result) => {
                 batch_new += result.new_files;
                 batch_modified += result.modified_files;
@@ -503,6 +529,178 @@ fn disable_autostart() -> Result<(), String> {
 #[tauri::command]
 fn is_autostart_enabled() -> Result<bool, String> {
     Ok(autostart::is_autostart_enabled())
+}
+
+/// Quit the application entirely. Sets a flag so the RunEvent handler
+/// allows the exit to proceed (bypassing the prevent_exit for window close).
+#[tauri::command]
+fn quit_app(app: tauri::AppHandle) {
+    log::info!("quit_app: setting quit flag and exiting");
+    set_quit_flag();
+    app.exit(0);
+}
+
+/// Non-blocking async scan: spawns the scan in a background thread and
+/// returns immediately. Progress is emitted via "scan-progress" events.
+/// Completion is signaled via "scan-complete" event.
+#[tauri::command]
+async fn scan_all_async(
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+) -> Result<(), String> {
+    // Prevent overlapping scans
+    if state.scanning.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+        return Err("A scan is already in progress.".to_string());
+    }
+
+    // Clone everything we need BEFORE moving into the spawn
+    let db = state.db.clone();
+    let crypto = state.crypto.clone();
+    let app_data_dir = state.app_data_dir.clone();
+    let scanning = state.scanning.clone();
+    let app_handle = app.clone();
+
+    tauri::async_runtime::spawn(async move {
+        let _guard = ScanLockGuard { flag: &scanning };
+
+        let folders = match db.get_monitored_folders() {
+            Ok(f) => f,
+            Err(e) => {
+                log::error!("scan_all_async: failed to get folders: {}", e);
+                let _ = app_handle.emit("scan-progress", ScanProgressEvent {
+                    current: 0, total: 0, directory: String::new(),
+                    phase: "error".to_string(), progress_percent: 0, files_scanned: 0,
+                });
+                return;
+            }
+        };
+        let active_folders: Vec<_> = folders.into_iter().filter(|f| f.enabled).collect();
+        let total = active_folders.len();
+        if total == 0 {
+            let _ = app_handle.emit("scan-complete", ());
+            return;
+        }
+
+        let folder_names: Vec<String> = active_folders.iter().map(|f| {
+            std::path::Path::new(&f.path).file_name()
+                .and_then(|n| n.to_str()).unwrap_or(&f.path).to_string()
+        }).collect();
+        let folders_display = folder_names.join(", ");
+
+        let batch_id = match db.create_scan_batch(total as i64, &folders_display) {
+            Ok(id) => id,
+            Err(e) => { log::error!("scan_all_async: batch create failed: {}", e); return; }
+        };
+
+        let scanner = Scanner::new(db.clone());
+        let mut batch_new = 0i64;
+        let mut batch_modified = 0i64;
+        let mut batch_total_files = 0i64;
+        let mut batch_total_size = 0i64;
+
+        for (i, folder) in active_folders.iter().enumerate() {
+            let progress = (i as f64 / total as f64 * 100.0) as u32;
+            let _ = app_handle.emit("scan-progress", ScanProgressEvent {
+                current: i + 1, total, directory: folder.path.clone(),
+                phase: "scanning".to_string(), progress_percent: progress, files_scanned: 0,
+            });
+
+            if let Err(e) = PathValidator::validate_directory(&folder.path) {
+                log::warn!("scan_all_async: skipping invalid path {}: {}", folder.path, e);
+                continue;
+            }
+
+            // Yield to the tokio runtime between folders so events can be delivered
+            tokio::task::yield_now().await;
+
+            // Cache ignore patterns once per folder (1 DB query instead of N)
+            let patterns = db.get_ignore_patterns_for_folder(folder.id).unwrap_or_default();
+
+            match scanner.scan_directory(&folder.path, batch_id, &patterns) {
+                Ok(result) => {
+                    batch_new += result.new_files;
+                    batch_modified += result.modified_files;
+                    batch_total_files += result.files_scanned;
+                    batch_total_size += result.total_size;
+                }
+                Err(e) => log::error!("scan_all_async: scan failed for {}: {}", folder.path, e),
+            }
+        }
+
+        // Cleanup phase
+        let _ = app_handle.emit("scan-progress", ScanProgressEvent {
+            current: total, total, directory: String::new(),
+            phase: "cleanup".to_string(), progress_percent: 90, files_scanned: 0,
+        });
+        tokio::task::yield_now().await;
+
+        let (batch_deleted, batch_moved) = match scanner.cleanup_deleted() {
+            Ok(result) => result,
+            Err(e) => { log::error!("scan_all_async: cleanup failed: {}", e); (0, 0) }
+        };
+
+        // Snapshot phase
+        let _ = app_handle.emit("scan-progress", ScanProgressEvent {
+            current: total, total, directory: String::new(),
+            phase: "snapshot".to_string(), progress_percent: 95, files_scanned: 0,
+        });
+        tokio::task::yield_now().await;
+
+        let storage = StorageAnalyzer::new(db.clone());
+        let _ = storage.snapshot_all();
+
+        // File snapshots
+        {
+            let snapshot_mgr = file_snapshots::FileSnapshotManager::new(db.clone(), &app_data_dir);
+            let folder_paths: Vec<String> = active_folders.iter().map(|f| f.path.clone()).collect();
+            match snapshot_mgr.scan_and_snapshot(&folder_paths) {
+                Ok(n) if n > 0 => log::info!("Async scan: created {} file snapshots", n),
+                _ => {}
+            }
+        }
+
+        // Complete batch
+        let _ = db.complete_scan_batch(
+            batch_id, batch_total_files, batch_new, batch_modified,
+            batch_deleted, batch_moved, batch_total_size,
+        );
+
+        // Duplicate detection
+        {
+            let detector = DuplicateDetector::new(db.clone());
+            match detector.detect() {
+                Ok(result) if result.groups_found > 0 =>
+                    log::info!("Async scan: {} duplicate groups, {} wasted", result.groups_found, result.wasted_bytes),
+                _ => {}
+            }
+        }
+
+        // Fire webhooks
+        match db.get_changes_in_batch(batch_id) {
+            Ok(changes) if !changes.is_empty() => {
+                let changes_json = serde_json::to_string(&changes).unwrap_or_default();
+                let db_w = db.clone();
+                let crypto_w = crypto.clone();
+                let dir_w = app_data_dir.clone();
+                tokio::spawn(async move {
+                    let _ = webhook::fire_webhooks_for_changes(
+                        &db_w, &crypto_w, get_http_client(), &changes_json, Some(&dir_w),
+                    ).await;
+                });
+            }
+            _ => {}
+        }
+
+        // Signal completion
+        let _ = app_handle.emit("scan-progress", ScanProgressEvent {
+            current: total, total, directory: String::new(),
+            phase: "complete".to_string(), progress_percent: 100, files_scanned: batch_total_files,
+        });
+        let _ = app_handle.emit("scan-complete", ());
+        log::info!("Async scan completed (batch {})", batch_id);
+    });
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -1393,8 +1591,8 @@ fn format_bytes_rust(bytes: i64) -> String {
 
 /// GitHub repository to check for updates.
 /// TODO: Replace with your actual GitHub username/repo before first release.
-const GITHUB_REPO_OWNER: &str = "OWNER";
-const GITHUB_REPO_NAME: &str = "REPO";
+const GITHUB_REPO_OWNER: &str = "Soodkrish";
+const GITHUB_REPO_NAME: &str = "What-Changed";
 
 #[derive(serde::Serialize)]
 struct UpdateInfo {
@@ -1487,6 +1685,17 @@ fn diagnose_webhooks(state: tauri::State<'_, AppState>) -> Result<String, String
 #[tauri::command]
 async fn check_for_updates() -> Result<UpdateInfo, String> {
     let current_version = env!("CARGO_PKG_VERSION");
+
+    // Skip if GitHub repo is not configured (still placeholder)
+    if GITHUB_REPO_OWNER == "OWNER" || GITHUB_REPO_NAME == "REPO" {
+        return Ok(UpdateInfo {
+            has_update: false,
+            current_version: current_version.to_string(),
+            latest_version: String::new(),
+            download_url: String::new(),
+            release_notes: String::new(),
+        });
+    }
 
     let client = get_http_client();
     let url = format!(
@@ -1613,6 +1822,20 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
+        // Single-instance lock: prevents multiple app instances.
+        // When a second instance tries to launch, the callback fires
+        // on the first instance so it can show its window.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            } else {
+                match tray::build_main_window(app, None) {
+                    Ok(w) => { let _ = w.show(); let _ = w.set_focus(); }
+                    Err(e) => log::warn!("Failed to recreate window: {}", e),
+                }
+            }
+        }))
         .on_window_event(|window, event| {
             // Intercept close: destroy the webview (frees ~100MB Chromium renderer).
             // Tray "Show" will recreate the window on demand.
@@ -1722,31 +1945,12 @@ pub fn run() {
             #[cfg(not(debug_assertions))]
             let is_dev = std::env::args().any(|a| a.contains("tauri"));
 
-            // Replace config-created window with memory-optimized version.
-            // tauri.conf.json windows can't carry additional_browser_args,
-            // so destroy the initial window and rebuild with WebView2 flags
-            // that save ~10-20MB GPU overhead.
+            // Handle start_minimized: hide the window if configured
             let should_show = is_dev || (!start_minimized && !setting_minimized);
-            // Always destroy the config-created window
-            if let Some(w) = app.get_webview_window("main") {
-                let _ = w.destroy();
-            }
-            // Rebuild with optimized Chromium args
-            match tray::build_main_window(app.handle(), None) {
-                Ok(w) => {
-                    if should_show {
-                        // Small delay to ensure window is fully initialized before showing
-                        let w_handle = w.as_ref().clone();
-                        tauri::async_runtime::spawn(async move {
-                            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-                            let _ = w_handle.show();
-                            let _ = w_handle.set_focus();
-                        });
-                    } else {
-                        let _ = w.hide();
-                    }
+            if !should_show {
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.hide();
                 }
-                Err(e) => log::warn!("Failed to create optimized window: {}", e),
             }
 
             // Sync autostart: reconcile DB setting with actual OS registry state
@@ -1769,6 +1973,7 @@ pub fn run() {
             get_change_stats_today,
             scan_directory,
             scan_all,
+            scan_all_async,
             detect_duplicates,
             get_duplicate_groups,
             get_storage_snapshots,
@@ -1846,14 +2051,22 @@ pub fn run() {
             generate_html_report,
             check_for_updates,
             diagnose_webhooks,
+            quit_app,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_app_handle, event| {
             // Prevent app from exiting when the last window is destroyed.
             // The tray icon + scheduler keep the app alive for background scanning.
+            // BUT: if the quit_app command was called, allow exit to proceed.
             if let tauri::RunEvent::ExitRequested { api, .. } = event {
-                api.prevent_exit();
+                if is_quit_requested() {
+                    // User explicitly quit — let the process exit
+                    log::info!("Exit requested with quit flag — allowing exit");
+                } else {
+                    // Window closed or other exit — stay alive in tray
+                    api.prevent_exit();
+                }
             }
         });
 }

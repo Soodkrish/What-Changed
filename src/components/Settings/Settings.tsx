@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useSettings } from "../../hooks/useSettings";
 import { FolderList } from "./FolderList";
 import {
@@ -16,7 +16,12 @@ import { IgnorePatterns } from "./IgnorePatterns";
 import { NotificationProfiles } from "./NotificationProfiles";
 import { WebhookSettings } from "./WebhookSettings";
 
-export function Settings() {
+interface SettingsProps {
+  onDirtyChange?: (dirty: boolean) => void;
+  onSavedFlash?: () => void;
+}
+
+export function Settings({ onDirtyChange, onSavedFlash }: SettingsProps) {
   const { folders, settings, loading, refresh } = useSettings();
   const [scanFrequency, setScanFrequency] = useState(
     settings.scan_frequency || "15"
@@ -44,12 +49,41 @@ export function Settings() {
   );
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [savedFlash, setSavedFlash] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Snapshot of the last saved values for dirty detection
+  const lastSavedRef = useRef<string>("");
 
-  // Clear toast timer on unmount
+  // Build a fingerprint of current settings values
+  const currentFingerprint = useMemo(() =>
+    JSON.stringify({
+      scanFrequency,
+      startMinimized,
+      notificationsEnabled,
+      dailySummary,
+      dailySummaryWebhook,
+      dailySummaryTime,
+      autoStart,
+      snapshotsEnabled,
+    }),
+    [scanFrequency, startMinimized, notificationsEnabled, dailySummary, dailySummaryWebhook, dailySummaryTime, autoStart, snapshotsEnabled]
+  );
+
+  // Track dirty state
+  const isDirty = currentFingerprint !== lastSavedRef.current && lastSavedRef.current !== "";
+
+  // Notify parent of dirty state changes
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+    return () => onDirtyChange?.(false);
+  }, [isDirty, onDirtyChange]);
+
+  // Clear timers on unmount
   useEffect(() => {
     return () => {
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (savedFlashTimerRef.current) clearTimeout(savedFlashTimerRef.current);
     };
   }, []);
 
@@ -63,6 +97,19 @@ export function Settings() {
     if (settings.daily_summary_time !== undefined) setDailySummaryTime(settings.daily_summary_time);
     if (settings.autostart_enabled !== undefined) setAutoStart(settings.autostart_enabled === "true");
     if (settings.file_snapshots_enabled !== undefined) setSnapshotsEnabled(settings.file_snapshots_enabled === "true");
+    // Update the saved snapshot after settings load
+    if (lastSavedRef.current === "") {
+      lastSavedRef.current = JSON.stringify({
+        scanFrequency: settings.scan_frequency || "15",
+        startMinimized: settings.start_minimized === "true",
+        notificationsEnabled: settings.notifications_enabled !== "false",
+        dailySummary: settings.daily_summary_enabled !== "false",
+        dailySummaryWebhook: settings.daily_summary_webhook_enabled === "true",
+        dailySummaryTime: settings.daily_summary_time || "18:00",
+        autoStart: settings.autostart_enabled === "true",
+        snapshotsEnabled: settings.file_snapshots_enabled === "true",
+      });
+    }
   }, [settings]);
 
   const showToast = (type: "success" | "error", message: string) => {
@@ -124,6 +171,15 @@ export function Settings() {
       // Restart scheduler with new frequency
       await restartScheduler();
 
+      // Update the saved snapshot so dirty detection resets
+      lastSavedRef.current = currentFingerprint;
+
+      // Show green flash for 2 seconds
+      setSavedFlash(true);
+      onSavedFlash?.();
+      if (savedFlashTimerRef.current) clearTimeout(savedFlashTimerRef.current);
+      savedFlashTimerRef.current = setTimeout(() => setSavedFlash(false), 2000);
+
       showToast("success", "Settings saved successfully");
     } catch (err) {
       showToast("error", `Failed to save settings: ${err}`);
@@ -140,6 +196,18 @@ export function Settings() {
     setDailySummaryWebhook(false);
     setDailySummaryTime("18:00");
     setAutoStart(false);
+    setSnapshotsEnabled(false);
+    // Update snapshot so reset itself isn't "dirty"
+    lastSavedRef.current = JSON.stringify({
+      scanFrequency: "15",
+      startMinimized: false,
+      notificationsEnabled: true,
+      dailySummary: true,
+      dailySummaryWebhook: false,
+      dailySummaryTime: "18:00",
+      autoStart: false,
+      snapshotsEnabled: false,
+    });
     showToast("success", "Settings reset to defaults");
   };
 
@@ -156,13 +224,40 @@ export function Settings() {
     );
   }
 
+  // Ribbon color: green flash when just saved, red when dirty, default otherwise
+  const ribbonColor = savedFlash
+    ? "bg-emerald-500"
+    : isDirty
+    ? "bg-red-500"
+    : "bg-gray-300 dark:bg-gray-600";
+
+  const ribbonLabel = savedFlash
+    ? "Saved"
+    : isDirty
+    ? "Unsaved changes"
+    : "";
+
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h2>
+          {(isDirty || savedFlash) && (
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium text-white transition-colors ${ribbonColor}`}>
+              {savedFlash ? (
+                <Check className="w-3 h-3" />
+              ) : (
+                <AlertCircle className="w-3 h-3" />
+              )}
+              {ribbonLabel}
+            </span>
+          )}
+        </div>
         <p className="text-sm text-gray-500 mt-1">
           Configure what and how to monitor.
         </p>
+        {/* Subtle ribbon line */}
+        <div className={`h-0.5 rounded-full mt-3 transition-colors ${ribbonColor}`} />
       </div>
 
       {/* Monitored Folders */}

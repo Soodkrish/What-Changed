@@ -97,8 +97,8 @@ Download the latest installer from [**GitHub Releases →**](https://github.com/
 
 | Installer | Description |
 |-----------|-------------|
-| [`What-Changed_1.1.2_x64-setup.exe`](https://github.com/Soodkrish/What-Changed/releases/latest) | **Recommended** — Standard Windows installer (NSIS) |
-| [`What-Changed_1.1.2_x64_en-US.msi`](https://github.com/Soodkrish/What-Changed/releases/latest) | MSI installer — Supports silent install & Group Policy deployment |
+| [`What-Changed.exe`](https://github.com/Soodkrish/What-Changed/releases/latest) | **Recommended** — Standard Windows installer (NSIS) |
+| [`What-Changed.msi`](https://github.com/Soodkrish/What-Changed/releases/latest) | MSI installer — Supports silent install & Group Policy deployment |
 
 > **Quick download:** Grab the `.exe` for a familiar Next→Next→Install wizard.
 
@@ -252,7 +252,7 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 
 <div align="center">
 
-**Built with ❤️ using Tauri + React + Rust**
+**Built with ❤️ using Tauri + Rust**
 
 [⬆ Back to top](#-what-changed)
 

@@ -143,6 +143,10 @@ export async function scanAll(): Promise<ScanResult[]> {
   return invoke("scan_all");
 }
 
+export async function scanAllAsync(): Promise<void> {
+  return invoke("scan_all_async");
+}
+
 export async function detectDuplicates() {
   return invoke<{ groups_found: number; wasted_bytes: number }>(
     "detect_duplicates",
@@ -245,6 +249,11 @@ export async function disableAutostart(): Promise<void> {
 
 export async function isAutostartEnabled(): Promise<boolean> {
   return invoke("is_autostart_enabled");
+}
+
+// Quit the application entirely
+export async function quitApp(): Promise<void> {
+  return invoke("quit_app");
 }
 
 // --- Recovery API functions ---

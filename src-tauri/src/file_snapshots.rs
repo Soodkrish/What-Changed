@@ -144,7 +144,6 @@ impl FileSnapshotManager {
         let metadata = fs::metadata(path).map_err(|e| format!("Failed to read metadata: {}", e))?;
         let size = metadata.len() as i64;
 
-        // Hard cap: refuse files over 10MB to prevent OOM
         const MAX_SNAPSHOT_FILE_SIZE: u64 = 10 * 1024 * 1024;
         if metadata.len() > MAX_SNAPSHOT_FILE_SIZE {
             return Err(format!(
@@ -153,7 +152,6 @@ impl FileSnapshotManager {
             ));
         }
 
-        // Cache settings for this call
         let max_size = self.get_max_size();
         let extensions = self.get_extensions();
 
@@ -161,20 +159,19 @@ impl FileSnapshotManager {
             return Err("File not eligible for snapshot".to_string());
         }
 
-        // Stream-compute SHA-256 first (avoids loading entire file if hash matches)
         use sha2::{Sha256, Digest};
-        let mut file = fs::File::open(path).map_err(|e| format!("Failed to open file: {}", e))?;
-        let mut hasher = Sha256::new();
-        let mut buf = [0u8; 65536]; // 64KB streaming buffer
-        loop {
-            let n = file.read(&mut buf).map_err(|e| format!("Read error: {}", e))?;
-            if n == 0 { break; }
-            hasher.update(&buf[..n]);
+        let mut content = Vec::with_capacity(size.min(102400) as usize);
+        {
+            let mut file = fs::File::open(path).map_err(|e| format!("Failed to open file: {}", e))?;
+            file.read_to_end(&mut content)
+                .map_err(|e| format!("Failed to read file: {}", e))?;
         }
-        let content_hash = format!("{:x}", hasher.finalize());
+        let content_hash = {
+            let mut hasher = Sha256::new();
+            hasher.update(&content);
+            format!("{:x}", hasher.finalize())
+        };
 
-        // M32: Skip if content hash matches most recent snapshot (dedup)
-        // This avoids loading file content into memory for unchanged files
         if let Ok(snapshots) = self.db.get_snapshots_for_file(file_path) {
             if let Some(latest) = snapshots.first() {
                 if latest.file_hash.as_deref() == Some(&content_hash) {
@@ -183,11 +180,100 @@ impl FileSnapshotManager {
             }
         }
 
-        // Only now read full content (needed for zstd compression)
-        let mut file = fs::File::open(path).map_err(|e| format!("Failed to reopen file: {}", e))?;
+        let compressed = zstd::encode_all(&content[..], 1)
+            .map_err(|e| format!("Failed to compress: {}", e))?;
+        let compressed_size = compressed.len() as i64;
+
+        let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+        let date_dir = self.base_dir.join(&today);
+        fs::create_dir_all(&date_dir).ok();
+
+        let mut path_hasher = Sha256::new();
+        path_hasher.update(file_path.as_bytes());
+        let path_hash = format!("{:x}", path_hasher.finalize());
+        let snapshot_filename = format!("{}.zst", &path_hash[..32]);
+        let snapshot_path = date_dir.join(&snapshot_filename);
+
+        let temp_path = snapshot_path.with_extension("zst.tmp");
+        {
+            let mut tmp = fs::File::create(&temp_path)
+                .map_err(|e| format!("Failed to create temp snapshot: {}", e))?;
+            tmp.write_all(&compressed)
+                .map_err(|e| format!("Failed to write temp snapshot: {}", e))?;
+            tmp.sync_all().ok();
+        }
+
+        let filename = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown");
+
+        self.db
+            .insert_file_snapshot(
+                file_path,
+                filename,
+                snapshot_path.to_str().unwrap_or(""),
+                compressed_size,
+                size,
+                Some(&content_hash),
+            )
+            .map_err(|e| {
+                fs::remove_file(&temp_path).ok();
+                format!("Failed to record snapshot: {}", e)
+            })?;
+
+        fs::rename(&temp_path, &snapshot_path)
+            .map_err(|e| format!("Failed to finalize snapshot: {}", e))?;
+
+        self.db.log_recovery_action(
+            "snapshot_create",
+            Some(&serde_json::json!({"path": file_path, "compressed_size": compressed_size}).to_string()),
+            true,
+            None,
+        ).ok();
+
+        Ok(snapshot_path.to_str().unwrap_or("").to_string())
+    }
+
+    /// Scan-optimized snapshot: skips quota check and settings queries (caller caches them).
+    /// Uses pre-loaded snapshot_hashes HashMap for dedup (zero per-file DB queries).
+    fn snapshot_file_scan(&self, file_path: &str, snapshot_hashes: &std::collections::HashMap<String, String>) -> Result<String, String> {
+        let path = Path::new(file_path);
+        if !path.exists() {
+            return Err("File does not exist".to_string());
+        }
+
+        let metadata = fs::metadata(path).map_err(|e| format!("Failed to read metadata: {}", e))?;
+        let size = metadata.len() as i64;
+
+        const MAX_SNAPSHOT_FILE_SIZE: u64 = 10 * 1024 * 1024;
+        if metadata.len() > MAX_SNAPSHOT_FILE_SIZE {
+            return Err(format!(
+                "File too large for snapshot ({} bytes, max 10MB)",
+                metadata.len()
+            ));
+        }
+
+        // Read file ONCE into memory (hash + content from same buffer)
+        use sha2::{Sha256, Digest};
         let mut content = Vec::with_capacity(size.min(102400) as usize);
-        file.read_to_end(&mut content)
-            .map_err(|e| format!("Failed to read file: {}", e))?;
+        {
+            let mut file = fs::File::open(path).map_err(|e| format!("Failed to open file: {}", e))?;
+            file.read_to_end(&mut content)
+                .map_err(|e| format!("Failed to read file: {}", e))?;
+        }
+        let content_hash = {
+            let mut hasher = Sha256::new();
+            hasher.update(&content);
+            format!("{:x}", hasher.finalize())
+        };
+
+        // Skip if content hash matches most recent snapshot (dedup) — HashMap lookup, no DB
+        if let Some(existing_hash) = snapshot_hashes.get(file_path) {
+            if *existing_hash == content_hash {
+                return Ok("skipped: unchanged".to_string());
+            }
+        }
 
         // Compress with zstd (level 1 for speed)
         let compressed = zstd::encode_all(&content[..], 1)
@@ -390,6 +476,9 @@ impl FileSnapshotManager {
         let max_size = self.get_max_size();
         let extensions = self.get_extensions();
 
+        // Pre-load all snapshot hashes to avoid per-file DB queries during scan
+        let snapshot_hashes = self.db.get_latest_snapshot_hashes().unwrap_or_default();
+
         let mut snapshot_count = 0i64;
 
         for folder_path in folder_paths {
@@ -398,7 +487,7 @@ impl FileSnapshotManager {
                 continue;
             }
 
-            self.snapshot_directory_recursive(path, &mut snapshot_count, 0, &max_size, &extensions)?;
+            self.snapshot_directory_recursive(path, &mut snapshot_count, 0, &max_size, &extensions, &snapshot_hashes)?;
         }
 
         // Cleanup old snapshots
@@ -415,6 +504,7 @@ impl FileSnapshotManager {
         depth: u32,
         max_size: &i64,
         extensions: &[String],
+        snapshot_hashes: &std::collections::HashMap<String, String>,
     ) -> Result<(), String> {
         if depth >= MAX_RECURSION_DEPTH {
             return Ok(()); // Stop recursion at depth limit
@@ -438,23 +528,13 @@ impl FileSnapshotManager {
                 if path.is_symlink() {
                     continue;
                 }
-                self.snapshot_directory_recursive(&path, count, depth + 1, max_size, extensions)?;
+                self.snapshot_directory_recursive(&path, count, depth + 1, max_size, extensions, snapshot_hashes)?;
             } else if path.is_file() {
                 let path_str = path.to_str().unwrap_or("");
                 let file_size = entry.metadata().map(|m| m.len() as i64).unwrap_or(0);
                 if self.should_snapshot_with(path_str, file_size, *max_size, extensions) {
-                    // Check if file changed since last snapshot (compare hashes)
-                    if let Ok(snapshots) = self.db.get_snapshots_for_file(path_str) {
-                        if let Some(latest) = snapshots.first() {
-                            // Compare current file hash against most recent snapshot
-                            if let Ok(current_hash) = crate::scanner::Scanner::hash_file(&path) {
-                                if latest.file_hash.as_deref() == Some(&current_hash) {
-                                    continue; // File unchanged, skip snapshot
-                                }
-                            }
-                        }
-                    }
-                    if self.snapshot_file(path_str).is_ok() {
+                    // snapshot_file_scan skips redundant quota/settings DB queries (already cached)
+                    if self.snapshot_file_scan(path_str, snapshot_hashes).is_ok() {
                         *count += 1;
                     }
                 }
