@@ -50,14 +50,26 @@ export function Settings({ onDirtyChange, onSavedFlash }: SettingsProps) {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [stateSynced, setStateSynced] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Snapshot of the last saved values for dirty detection.
-  // null = not yet initialized (prevents false dirty on remount).
-  const lastSavedRef = useRef<string | null>(null);
-  const initialSyncDone = useRef(false);
+  // Baseline fingerprint: derived directly from backend `settings` object.
+  // No timing issues — useMemo recomputes in the same render as `settings` changes.
+  const baselineFingerprint = useMemo(() =>
+    JSON.stringify({
+      scanFrequency: settings.scan_frequency || "15",
+      startMinimized: settings.start_minimized === "true",
+      notificationsEnabled: settings.notifications_enabled !== "false",
+      dailySummary: settings.daily_summary_enabled !== "false",
+      dailySummaryWebhook: settings.daily_summary_webhook_enabled === "true",
+      dailySummaryTime: settings.daily_summary_time || "18:00",
+      autoStart: settings.autostart_enabled === "true",
+      snapshotsEnabled: settings.file_snapshots_enabled === "true",
+    }),
+    [settings]
+  );
 
-  // Build a fingerprint of current settings values
+  // Build a fingerprint of current local state values
   const currentFingerprint = useMemo(() =>
     JSON.stringify({
       scanFrequency,
@@ -72,8 +84,12 @@ export function Settings({ onDirtyChange, onSavedFlash }: SettingsProps) {
     [scanFrequency, startMinimized, notificationsEnabled, dailySummary, dailySummaryWebhook, dailySummaryTime, autoStart, snapshotsEnabled]
   );
 
-  // Track dirty state — null means "not yet synced", never dirty
-  const isDirty = lastSavedRef.current !== null && currentFingerprint !== lastSavedRef.current;
+  // Dirty = local state differs from what's saved in the backend
+  // baselineLoaded: backend settings have loaded (empty object = not yet)
+  // stateSynced: useEffect([settings]) has synced local state to match
+  // Both prevent false dirty flashes during remount
+  const baselineLoaded = Object.keys(settings).length > 0;
+  const isDirty = baselineLoaded && stateSynced && currentFingerprint !== baselineFingerprint;
 
   // Notify parent of dirty state changes
   useEffect(() => {
@@ -89,7 +105,7 @@ export function Settings({ onDirtyChange, onSavedFlash }: SettingsProps) {
     };
   }, []);
 
-  // Sync local state when settings load (fixes stale initialization)
+  // Sync local state when settings load
   useEffect(() => {
     if (settings.scan_frequency) setScanFrequency(settings.scan_frequency);
     if (settings.start_minimized !== undefined) setStartMinimized(settings.start_minimized === "true");
@@ -99,19 +115,10 @@ export function Settings({ onDirtyChange, onSavedFlash }: SettingsProps) {
     if (settings.daily_summary_time !== undefined) setDailySummaryTime(settings.daily_summary_time);
     if (settings.autostart_enabled !== undefined) setAutoStart(settings.autostart_enabled === "true");
     if (settings.file_snapshots_enabled !== undefined) setSnapshotsEnabled(settings.file_snapshots_enabled === "true");
+    // Mark state as synced — isDirty won't evaluate until this is true,
+    // preventing a false dirty flash while setters are still pending.
+    setStateSynced(true);
   }, [settings]);
-
-  // Initialize lastSavedRef AFTER state has been synced from settings.
-  // Skip the first render (settings effect also fires that cycle, setters pending),
-  // then capture on the next render when state is actually synced.
-  useEffect(() => {
-    if (!initialSyncDone.current) {
-      initialSyncDone.current = true;
-      // Don't set here — state setters from useEffect([settings]) haven't applied yet.
-    } else if (lastSavedRef.current === null) {
-      lastSavedRef.current = currentFingerprint;
-    }
-  });
 
   const showToast = (type: "success" | "error", message: string) => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -172,8 +179,9 @@ export function Settings({ onDirtyChange, onSavedFlash }: SettingsProps) {
       // Restart scheduler with new frequency
       await restartScheduler();
 
-      // Update the saved snapshot so dirty detection resets
-      lastSavedRef.current = currentFingerprint;
+      // Refresh settings from backend so baselineFingerprint updates
+      // (green flash covers the brief gap while this completes)
+      await refresh();
 
       // Show green flash for 2 seconds
       setSavedFlash(true);
@@ -198,18 +206,9 @@ export function Settings({ onDirtyChange, onSavedFlash }: SettingsProps) {
     setDailySummaryTime("18:00");
     setAutoStart(false);
     setSnapshotsEnabled(false);
-    // Update snapshot so reset itself isn't "dirty"
-    lastSavedRef.current = JSON.stringify({
-      scanFrequency: "15",
-      startMinimized: false,
-      notificationsEnabled: true,
-      dailySummary: true,
-      dailySummaryWebhook: false,
-      dailySummaryTime: "18:00",
-      autoStart: false,
-      snapshotsEnabled: false,
-    });
-    showToast("success", "Settings reset to defaults");
+    // Reset creates unsaved changes (baselineFingerprint still has old values)
+    // User needs to save to persist the reset
+    showToast("success", "Settings reset to defaults — save to apply");
   };
 
   const handleFolderRemoved = (folderName: string) => {
